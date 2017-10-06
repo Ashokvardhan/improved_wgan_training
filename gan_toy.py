@@ -237,7 +237,7 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
                 yield dataset
 
     # Train loop!
-    with tf.Session() as session:
+    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
         session.run(tf.initialize_all_variables())
         gen = inf_train_gen()
         for iteration in xrange(ITERS):
