@@ -19,7 +19,7 @@ import tflib.plot
 from util import argprun
 
 def run(mode="wgan-gp", dim=64, critic_iters=5, n_gpus=1,
-        batch_size=5, iters=200000, penalty_weight=10,
+        batch_size=64, iters=200000, penalty_weight=10,
         one_sided=True, output_dim=3072, data_dir=''):
     # Download CIFAR-10 (Python version) at
     # https://www.cs.toronto.edu/~kriz/cifar.html and fill in the path to the
