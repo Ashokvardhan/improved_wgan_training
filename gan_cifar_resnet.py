@@ -11,7 +11,7 @@ import tflib.ops.batchnorm
 import tflib.save_images
 import tflib.cifar10
 import tflib.inception_score
-import tflib.plot
+# import tflib.plot
 
 import numpy as np
 import tensorflow as tf
@@ -24,14 +24,19 @@ locale.setlocale(locale.LC_ALL, '')
 
 from util import argprun
 
+# specify one_sided, data_dir and log_dir and penalty_weight (everything else should be default, no conditioning)
+
 def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         n_gpus=1, normalization_g=True, normalization_d=False,
-        batch_size=64, iters=100000, penalty_weight=10,
+        batch_size=64, iters=110000, penalty_weight=10,
         one_sided=True, output_dim=3072, lr=2e-4, data_dir='',
-        inception_frequency=1000, conditional=True, acgan=True):
+        inception_frequency=1000, conditional=False, acgan=False, log_dir='',):
     # Download CIFAR-10 (Python version) at
     # https://www.cs.toronto.edu/~kriz/cifar.html and fill in the path to the
     # extracted files here!
+    lib.plot.logdir = log_dir
+    print("log dir set to {}".format(lib.plot.logdir))
+
     DATA_DIR = ''
     if len(DATA_DIR) == 0:
         raise Exception('Please specify path to data directory in gan_cifar.py!')
@@ -69,6 +74,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         DEVICES = [DEVICES[0], DEVICES[0]]
 
     lib.print_model_settings(locals().copy())
+
+    # region model
 
     def nonlinearity(x):
         return tf.nn.relu(x)
@@ -188,6 +195,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         else:
             return output_wgan, None
 
+    # endregion
+
     with tf.Session() as session:
 
         _iteration = tf.placeholder(tf.int32, shape=None)
@@ -208,7 +217,13 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         DEVICES_B = DEVICES[:len(DEVICES)/2]
         DEVICES_A = DEVICES[len(DEVICES)/2:]
 
-        disc_costs = []
+        disc_costs = []     # total disc cost
+        # for separate logging
+        scorediff_acc = []
+        gps_all_acc = []
+        gps_pos_acc = []
+        gps_neg_acc = []
+
         disc_acgan_costs = []
         disc_acgan_accs = []
         disc_acgan_fake_accs = []
@@ -230,6 +245,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                 disc_real = disc_all[:BATCH_SIZE/len(DEVICES_A)]
                 disc_fake = disc_all[BATCH_SIZE/len(DEVICES_A):]
                 disc_costs.append(tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real))
+                scorediff_acc.append(tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real))
+
                 if CONDITIONAL and ACGAN:
                     disc_acgan_costs.append(tf.reduce_mean(
                         tf.nn.sparse_softmax_cross_entropy_with_logits(logits=disc_all_acgan[:BATCH_SIZE/len(DEVICES_A)], labels=real_and_fake_labels[:BATCH_SIZE/len(DEVICES_A)])
@@ -253,7 +270,6 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                         )
                     ))
 
-
         for i, device in enumerate(DEVICES_B):
             with tf.device(device):
                 real_data = tf.concat([all_real_data_splits[i], all_real_data_splits[len(DEVICES_A)+i]], axis=0)
@@ -271,13 +287,26 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                 interpolates = real_data + (alpha*differences)
                 gradients = tf.gradients(Discriminator(interpolates, labels)[0], [interpolates])[0]
                 slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
-                if ONE_SIDED is False:
-                    gradient_penalty = LAMBDA *tf.reduce_mean((slopes-1.)**2)
-                else:
+                if ONE_SIDED is True:
                     gradient_penalty = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
+                    gp_pos = gradient_penalty
+                    gp_neg = tf.constant(0.)
+                else:
+                    gradient_penalty = LAMBDA *tf.reduce_mean((slopes-1.)**2)
+                    gp_pos = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
+                    gp_neg = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., -np.infty, 0)**2)
                 disc_costs.append(gradient_penalty)
+                gps_all_acc.append(gradient_penalty)
+                gps_pos_acc.append(gp_pos)
+                gps_neg_acc.append(gp_neg)
 
         disc_wgan = tf.add_n(disc_costs) / len(DEVICES_A)
+        # for more logging
+        scorediff = tf.add_n(scorediff_acc) / len(DEVICES_A)
+        gps_all = tf.add_n(gps_all_acc) / len(DEVICES_A)
+        gps_pos = tf.add_n(gps_pos_acc) / len(DEVICES_A)
+        gps_neg = tf.add_n(gps_neg_acc) / len(DEVICES_A)
+
         if CONDITIONAL and ACGAN:
             disc_acgan = tf.add_n(disc_acgan_costs) / len(DEVICES_A)
             disc_acgan_acc = tf.add_n(disc_acgan_accs) / len(DEVICES_A)
@@ -327,14 +356,16 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         fixed_noise = tf.constant(np.random.normal(size=(100, 128)).astype('float32'))
         fixed_labels = tf.constant(np.array([0,1,2,3,4,5,6,7,8,9]*10,dtype='int32'))
         fixed_noise_samples = Generator(100, fixed_labels, noise=fixed_noise)
+
         def generate_image(frame, true_dist):
             samples = session.run(fixed_noise_samples)
             samples = ((samples+1.)*(255./2)).astype('int32')
-            lib.save_images.save_images(samples.reshape((100, 3, 32, 32)), 'samples_{}.png'.format(frame))
+            lib.save_images.save_images(samples.reshape((100, 3, 32, 32)), '{}/samples_{}.png'.format(log_dir, frame))
 
         # Function for calculating inception score
         fake_labels_100 = tf.cast(tf.random_uniform([100])*10, tf.int32)
         samples_100 = Generator(100, fake_labels_100)
+
         def get_inception_score(n):
             all_samples = []
             for i in xrange(n/100):
@@ -345,6 +376,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             return lib.inception_score.get_inception_score(list(all_samples))
 
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
+
         def inf_train_gen():
             while True:
                 for images,_labels in train_gen():
@@ -376,6 +408,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         gen = inf_train_gen()
 
         for iteration in xrange(ITERS):
+            # TRAINING
             start_time = time.time()
 
             if iteration > 0:
@@ -386,9 +419,18 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                 if CONDITIONAL and ACGAN:
                     _disc_cost, _disc_wgan, _disc_acgan, _disc_acgan_acc, _disc_acgan_fake_acc, _ = session.run([disc_cost, disc_wgan, disc_acgan, disc_acgan_acc, disc_acgan_fake_acc, disc_train_op], feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration:iteration})
                 else:
-                    _disc_cost, _ = session.run([disc_cost, disc_train_op], feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration:iteration})
+                    _disc_cost, _scorediff, _gps_all, _gps_pos, _gps_neg, _gen_cost, _ \
+                        = session.run(
+                    [disc_cost,  scorediff,  gps_all,  gps_pos,  gps_neg,  gen_cost, disc_train_op],
+                        feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration:iteration})
 
             lib.plot.plot('cost', _disc_cost)
+            # extra plot
+            lib.plot.plot('core', _scorediff)
+            lib.plot.plot('gp', _gps_all)
+            lib.plot.plot('gp_pos', _gps_pos)
+            lib.plot.plot('gp_neg', _gps_neg)
+            lib.plot.plot('gen_cost', _gen_cost)
             if CONDITIONAL and ACGAN:
                 lib.plot.plot('wgan', _disc_wgan)
                 lib.plot.plot('acgan', _disc_acgan)
@@ -399,15 +441,36 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             if iteration % INCEPTION_FREQUENCY == INCEPTION_FREQUENCY-1:
                 inception_score = get_inception_score(50000)
                 lib.plot.plot('inception_50k', inception_score[0])
-                lib.plot.plot('inception_50k_std', inception_score[1])
+                lib.plot.plot('inception_50k_std', inception_score[1])      # std of inception over 10 splits
 
             # Calculate dev loss and generate samples every 100 iters
+            # VALIDATION
             if iteration % 100 == 99:
                 dev_disc_costs = []
+                dev_scorediff = []
+                dev_gp_all = []
+                dev_gp_pos = []
+                dev_gp_neg = []
+                dev_gen_costs = []
                 for images,_labels in dev_gen():
-                    _dev_disc_cost = session.run([disc_cost], feed_dict={all_real_data_int: images,all_real_labels:_labels})
+                    _dev_disc_cost, _dev_scorediff, _dev_gps_all, _dev_gps_pos, _dev_gps_neg, _dev_gen_cost \
+                        = session.run(
+                    [disc_cost,          scorediff,      gps_all,      gps_pos,      gps_neg,      gen_cost],
+                        feed_dict={all_real_data_int: images,all_real_labels:_labels})
+
                     dev_disc_costs.append(_dev_disc_cost)
+                    dev_scorediff.append(_dev_scorediff)
+                    dev_gp_all.append(_dev_gps_all)
+                    dev_gp_pos.append(_dev_gps_pos)
+                    dev_gp_neg.append(_dev_gps_neg)
+                    dev_gen_costs.append(_dev_gen_cost)
+
                 lib.plot.plot('dev_cost', np.mean(dev_disc_costs))
+                lib.plot.plot('dev_core', np.mean(dev_scorediff))
+                lib.plot.plot('dev_gp', np.mean(dev_gp_all))
+                lib.plot.plot('dev_gp_pos', np.mean(dev_gp_pos))
+                lib.plot.plot('dev_gp_neg', np.mean(dev_gp_neg))
+                lib.plot.plot('dev_gen_cost', np.mean(dev_gen_costs))
 
                 generate_image(iteration, _data)
 

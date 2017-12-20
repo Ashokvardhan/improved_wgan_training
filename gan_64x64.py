@@ -22,7 +22,7 @@ from util import argprun
 
 def run(mode="wgan-gp", dim=64, critic_iters=5, n_gpus=1,
         batch_size=5, iters=200000, penalty_weight=10,
-        one_sided=True, output_dim=64*64*3, data_dir=''):
+        one_sided=True, output_dim=64*64*3, data_dir='', log_dir):
     # Download 64x64 ImageNet at http://image-net.org/small/download.php and
     # fill in the path to the extracted files here!
     DATA_DIR = data_dir
@@ -41,6 +41,7 @@ def run(mode="wgan-gp", dim=64, critic_iters=5, n_gpus=1,
 
     lib.print_model_settings(locals().copy())
 
+    # region models
     def GeneratorAndDiscriminator():
         """
         Choose which generator and discriminator architecture to use by
@@ -466,6 +467,8 @@ def run(mode="wgan-gp", dim=64, critic_iters=5, n_gpus=1,
         return tf.reshape(output, [-1])
 
     Generator, Discriminator = GeneratorAndDiscriminator()
+
+    # endregion
 
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as session:
 
