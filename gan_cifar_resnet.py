@@ -434,6 +434,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             _inception_score, _fid_score = fid.calc_IS_and_FID(all_samples, session, (mu_real, sigma_real), 100, True)
             _inception_score_check = lib.inception_score.get_inception_score(list(all_samples), sess=session)
             assert(_inception_score == _inception_score_check)
+            print("IS calculation same as old")
             # mu_gen, sigma_gen = fid.calculate_activation_statistics(all_samples, session, 100, verbose=True)
             # try:
             #     _fid_score = fid.calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
