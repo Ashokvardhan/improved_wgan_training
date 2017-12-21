@@ -3,7 +3,7 @@ from util import argprun
 
 def runrun(dim_g=128, dim_d=128, critic_iters=5,
         n_gpus=1, normalization_g=True, normalization_d=False,
-        batch_size=64, iters=101001, penalty_weight="100 0.1 1 5 500",
+        batch_size=64, iters=101001, penalty_weight="5 100 0.1 1 500",
         one_sided=False, output_dim=3072, lr=2e-4, data_dir='',
         inception_frequency=2000, conditional=False, acgan=False, log_dir='exp', gpu=0):
 

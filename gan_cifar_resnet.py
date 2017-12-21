@@ -433,11 +433,12 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             all_samples = all_samples.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
             print("getting IS and FID")
             _inception_score, _fid_score = fid.calc_IS_and_FID(all_samples, session, (mu_real, sigma_real), 100, True)
+            _inception, _inception_std = inception_score
 
-            _inception_score_check = lib.inception_score.get_inception_score(list(all_samples), sess=session)
-            print(_inception_score, _inception_score_check)
-            embed()
-            assert(_inception_score == _inception_score_check)
+            # _inception_score_check = lib.inception_score.get_inception_score(list(all_samples), sess=session)
+            # print(_inception_score, _inception_score_check)
+            # embed()
+            # assert(_inception_score[0] == _inception_score_check[0])
             # print("IS calculation same as old")
             # mu_gen, sigma_gen = fid.calculate_activation_statistics(all_samples, session, 100, verbose=True)
             # try:
@@ -546,6 +547,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                 lib.plot.plot('dev_gp_neg', np.mean(dev_gp_neg))
                 lib.plot.plot('dev_gen_cost', np.mean(dev_gen_costs))
 
+            if iteration % 500 == 0:
                 generate_image(iteration, _data)
 
             if (iteration < 500) or (iteration % 1000 == 999):
