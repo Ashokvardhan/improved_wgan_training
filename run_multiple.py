@@ -25,10 +25,15 @@ def runrun(dim_g=128, dim_d=128, critic_iters=5,
     pws = map(float, penalty_weight.split())
 
     for pw in pws:
+        _logdir = logdir.format(expcount)
+        if os.path.exists(_logdir):
+            raise Exception("logdir {} exists".format(_logdir))
+        else:
+            os.makedirs(_logdir)
         run(dim_g=dim_g, dim_d=dim_d, critic_iters=critic_iters, n_gpus=n_gpus,
             normalization_d=normalization_d, normalization_g=normalization_g, batch_size=batch_size,
             iters=iters, penalty_weight=pw, one_sided=one_sided, output_dim=output_dim, lr=lr, data_dir=data_dir,
-            inception_frequency=inception_frequency, conditional=conditional, acgan=acgan, log_dir=logdir.format(expcount))
+            inception_frequency=inception_frequency, conditional=conditional, acgan=acgan, log_dir=_logdir)
         expcount += 1
 
 
