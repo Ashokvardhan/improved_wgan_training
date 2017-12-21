@@ -1,4 +1,5 @@
 """WGAN-GP ResNet for CIFAR-10"""
+from __future__ import print_function
 
 import os, sys
 sys.path.append(os.getcwd())
@@ -12,6 +13,8 @@ import tflib.save_images
 import tflib.cifar10
 import tflib.inception_score
 import tflib.plot
+from tflib import fid
+import glob
 
 import numpy as np
 import tensorflow as tf
@@ -75,13 +78,47 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
     LAMBDA = penalty_weight
 
     if CONDITIONAL and (not ACGAN) and (not NORMALIZATION_D):
-        print "WARNING! Conditional model without normalization in D might be effectively unconditional!"
+        print("WARNING! Conditional model without normalization in D might be effectively unconditional!")
 
     DEVICES = ['/gpu:{}'.format(i) for i in xrange(N_GPUS)]
     if len(DEVICES) == 1: # Hack because the code assumes 2 GPUs
         DEVICES = [DEVICES[0], DEVICES[0]]
 
     lib.print_model_settings(locals().copy())
+
+    # region cifar FID
+    if not os.path.exists("cifar.fid.stats"):  # compute fid stats for CIFAR
+        train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
+        inception_path = "/tmp/imagenet"
+        print("check for inception model..", end=" ", flush = True)
+        inception_path = fid.check_or_download_inception(inception_path)  # download inception if necessary
+        print("ok")
+
+        # loads all images into memory (this might require a lot of RAM!)
+        print("load images..", end=" ", flush = True)
+        images = []
+        for imagebatch, _ in dev_gen:
+            images.append(imagebatch)
+        allimages = np.concatenate(images, axis=0)
+        allimages = ((allimages+1.)*(255.99/2)).astype('int32')
+        allimages = allimages.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
+        images = list(allimages)
+        print("%d images found and loaded" % len(images))
+
+        print("create inception graph..", end=" ", flush = True)
+        fid.create_inception_graph(inception_path)  # load the graph into the current TF graph
+        print("ok")
+
+        print("calculte FID stats..", end=" ", flush = True)
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            mu, sigma = fid.calculate_activation_statistics(images, sess, batch_size=100)
+            np.savez_compressed("cifar.fid.stats", mu=mu, sigma=sigma)
+        print("finished")
+
+    f = np.load("cifar.fid.stats")
+    mu_real, sigma_real = f['mu'][:], f['sigma'][:]
+    # endregion
 
     # region model
 
