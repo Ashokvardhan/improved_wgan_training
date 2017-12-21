@@ -185,7 +185,9 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2):
     """
     print("calculating distance")
     m = np.square(mu1 - mu2).sum()
+    print("calculating distance")
     s = sp.linalg.sqrtm(np.dot(sigma1, sigma2))
+    print("calculating distance")
     dist = m + np.trace(sigma1+sigma2 - 2*s)
     if np.isnan(dist):
         raise InvalidFIDException("nan occured in distance calculation.")
@@ -205,14 +207,15 @@ def calculate_inception_score(act, splits=10):
 def calc_IS_and_FID(images, session, realstats, batsize, verbose=False):
     print("calculating stats")
     act, act_sm = get_activations_and_sm(images, session, batsize, verbose)
+
+    print("calculating IS")
+    IS = calculate_inception_score(act_sm)
+
+    print("calculating FID")
     mu_gen = np.mean(act, axis=0)
     sigma_gen = np.cov(act, rowvar=False)
 
     mu_real, sigma_real = realstats
-
-    print("calculating IS")
-    IS = calculate_inception_score(act_sm)
-    print("calculating FID")
     try:
         FID = calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
     except Exception as e:
