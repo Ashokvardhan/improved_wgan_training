@@ -97,7 +97,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         # loads all images into memory (this might require a lot of RAM!)
         print("load images..")
         images = []
-        for imagebatch, _ in dev_gen:
+        for imagebatch, _ in dev_gen():
             images.append(imagebatch)
         allimages = np.concatenate(images, axis=0)
         allimages = ((allimages+1.)*(255.99/2)).astype('int32')
