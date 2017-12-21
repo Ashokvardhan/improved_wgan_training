@@ -99,6 +99,12 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         images = []
         for imagebatch, _ in dev_gen():
             images.append(imagebatch)
+
+        _use_train_for_stats = True
+        if _use_train_for_stats:
+            for imagebatch, _ in train_gen():
+                images.append(imagebatch)
+
         allimages = np.concatenate(images, axis=0)
         allimages = ((allimages+1.)*(255.99/2)).astype('int32')
         allimages = allimages.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
@@ -110,7 +116,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         fid.create_inception_graph(inception_path)  # load the graph into the current TF graph
         print("ok")
 
-        print("calculte FID stats..")
+        print("calculate FID stats..")
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             mu, sigma = fid.calculate_activation_statistics(images, sess, batch_size=100)
@@ -422,9 +428,14 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             all_samples = np.concatenate(all_samples, axis=0)
             all_samples = ((all_samples+1.)*(255.99/2)).astype('int32')
             all_samples = all_samples.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
-            inception_score = lib.inception_score.get_inception_score(list(all_samples))
-            # fid_score = fid.calculate_activation_statistics()
-            return inception_score
+            _inception_score = lib.inception_score.get_inception_score(list(all_samples))
+            mu_gen, sigma_gen = fid.calculate_activation_statistics(all_samples, session, 100, verbose=True)
+            try:
+                _fid_score = fid.calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
+            except Exception as e:
+                print(e)
+                _fid_score = 10e4
+            return _inception_score, _fid_score
 
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
 
@@ -490,9 +501,10 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             lib.plot.plot('time', time.time() - start_time)
 
             if iteration % INCEPTION_FREQUENCY == INCEPTION_FREQUENCY-1:
-                inception_score = get_IS_and_FID(50000)
-                lib.plot.plot('inception_50k', inception_score[0])
-                lib.plot.plot('inception_50k_std', inception_score[1])      # std of inception over 10 splits
+                inception_score, fid_score = get_IS_and_FID(50000)
+                lib.plot.plot('inception', inception_score[0])
+                lib.plot.plot('inception_std', inception_score[1])      # std of inception over 10 splits
+                lib.plot.plot('fid', fid_score)
 
             # Calculate dev loss and generate samples every 100 iters
             # VALIDATION
