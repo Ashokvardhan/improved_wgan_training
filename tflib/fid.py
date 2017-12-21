@@ -69,13 +69,14 @@ def _get_inception_score_layer(sess):
     for op_idx, op in enumerate(ops):
         for o in op.outputs:
             shape = o.get_shape()
-            shape = [s.value for s in shape]
-            new_shape = []
-            for j, s in enumerate(shape):
-                if s == 1 and j == 0:
-                    new_shape.append(None)
-                else:
-                    new_shape.append(s)
+            if shape._dims is not None:
+                shape = [s.value for s in shape]
+                new_shape = []
+                for j, s in enumerate(shape):
+                    if s == 1 and j == 0:
+                        new_shape.append(None)
+                    else:
+                        new_shape.append(s)
             o._shape = tf.TensorShape(new_shape)
     w = sess.graph.get_operation_by_name("FID_Inception_Net/softmax/logits/MatMul").inputs[1]
     logits = tf.matmul(tf.squeeze(pool3), w)
