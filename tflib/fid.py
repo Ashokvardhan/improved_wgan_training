@@ -19,12 +19,14 @@ See --help to see further details.
 from __future__ import absolute_import, division, print_function
 import numpy as np
 import scipy as sp
+import scipy.linalg
 import os
 import gzip, pickle
 import tensorflow as tf
 from scipy.misc import imread
 import pathlib
 import urllib
+from IPython import embed
 
 
 class InvalidFIDException(Exception):
@@ -187,6 +189,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2):
     m = np.square(mu1 - mu2).sum()
     _dp = np.dot(sigma1, sigma2)
     print("{} pre-sqrtm shape".format(_dp.shape))
+    embed()
     s = sp.linalg.sqrtm(_dp)
     dist = m + np.trace(sigma1+sigma2 - 2*s)
     if np.isnan(dist):
@@ -220,7 +223,7 @@ def calc_IS_and_FID(images, session, realstats, batsize, verbose=False):
         FID = calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
     except Exception as e:
         print(e)
-        FID = 1e4
+        FID = 500
     print("DONE")
     return IS, FID
 
