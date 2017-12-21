@@ -486,16 +486,16 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             start_time = time.time()
 
             if iteration > 0:
-                _ = session.run([gen_train_op], feed_dict={_iteration:iteration})
+                _gen_cost, _ = session.run([gen_cost, gen_train_op], feed_dict={_iteration:iteration})
 
             for i in range(N_CRITIC):
                 _data,_labels = gen.next()
                 if CONDITIONAL and ACGAN:
                     _disc_cost, _disc_wgan, _disc_acgan, _disc_acgan_acc, _disc_acgan_fake_acc, _ = session.run([disc_cost, disc_wgan, disc_acgan, disc_acgan_acc, disc_acgan_fake_acc, disc_train_op], feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration:iteration})
                 else:
-                    _disc_cost, _scorediff, _gps_all, _gps_pos, _gps_neg, _gen_cost, _ \
+                    _disc_cost, _scorediff, _gps_all, _gps_pos, _gps_neg, _ \
                         = session.run(
-                    [disc_cost,  scorediff,  gps_all,  gps_pos,  gps_neg,  gen_cost, disc_train_op],
+                    [disc_cost,  scorediff,  gps_all,  gps_pos,  gps_neg,  disc_train_op],
                         feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration:iteration})
 
             lib.plot.plot('cost', _disc_cost)
