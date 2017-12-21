@@ -423,7 +423,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             all_samples = ((all_samples+1.)*(255.99/2)).astype('int32')
             all_samples = all_samples.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
             inception_score = lib.inception_score.get_inception_score(list(all_samples))
-            fid_score = fid.calculate_activation_statistics()
+            # fid_score = fid.calculate_activation_statistics()
+            return inception_score
 
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
 
@@ -489,7 +490,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             lib.plot.plot('time', time.time() - start_time)
 
             if iteration % INCEPTION_FREQUENCY == INCEPTION_FREQUENCY-1:
-                inception_score = get_inception_score(50000)
+                inception_score = get_IS_and_FID(50000)
                 lib.plot.plot('inception_50k', inception_score[0])
                 lib.plot.plot('inception_50k_std', inception_score[1])      # std of inception over 10 splits
 
