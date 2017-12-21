@@ -102,8 +102,9 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         allimages = np.concatenate(images, axis=0)
         allimages = ((allimages+1.)*(255.99/2)).astype('int32')
         allimages = allimages.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
-        images = list(allimages)
-        print("%d images found and loaded" % len(images))
+        # images = list(allimages)
+        images = allimages
+        print("%d images found and loaded: {}" % len(images, images.shape))
 
         print("create inception graph..")
         fid.create_inception_graph(inception_path)  # load the graph into the current TF graph
