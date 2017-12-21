@@ -43,6 +43,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         del loca["f"]
         del loca["loca"]
         f.write(str(loca))
+        print("saved settings: {}".format(loca))
 
     DATA_DIR = ''
     if len(DATA_DIR) == 0:
