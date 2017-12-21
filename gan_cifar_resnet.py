@@ -33,7 +33,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         n_gpus=1, normalization_g=True, normalization_d=False,
         batch_size=64, iters=110000, penalty_weight=10,
         one_sided=False, output_dim=3072, lr=2e-4, data_dir='/srv/denis/tfvision-datasets/cifar-10-batches-py',
-        inception_frequency=1000, conditional=False, acgan=False, log_dir='default_log',):
+        inception_frequency=2000, conditional=False, acgan=False, log_dir='default_log',):
     # Download CIFAR-10 (Python version) at
     # https://www.cs.toronto.edu/~kriz/cifar.html and fill in the path to the
     # extracted files here!
@@ -86,13 +86,18 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
     lib.print_model_settings(locals().copy())
 
+    inception_path = "/tmp/imagenet"
+    print("check for inception model..")
+    inception_path = fid.check_or_download_inception(inception_path)  # download inception if necessary
+    print("ok")
+
+    print("create inception graph..")
+    fid.create_inception_graph(inception_path)  # load the graph into the current TF graph
+    print("ok")
+
     # region cifar FID
     if not os.path.exists("cifar.fid.stats.npz"):  # compute fid stats for CIFAR
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
-        inception_path = "/tmp/imagenet"
-        print("check for inception model..")
-        inception_path = fid.check_or_download_inception(inception_path)  # download inception if necessary
-        print("ok")
 
         # loads all images into memory (this might require a lot of RAM!)
         print("load images..")
@@ -112,10 +117,6 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         # images = list(allimages)
         images = allimages
         print("%d images found and loaded: {}" % len(images), images.shape)
-
-        print("create inception graph..")
-        fid.create_inception_graph(inception_path)  # load the graph into the current TF graph
-        print("ok")
 
         print("calculate FID stats..")
         with tf.Session() as sess:
@@ -429,14 +430,15 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             all_samples = np.concatenate(all_samples, axis=0)
             all_samples = ((all_samples+1.)*(255.99/2)).astype('int32')
             all_samples = all_samples.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
-            _inception_score = lib.inception_score.get_inception_score(list(all_samples), sess=session)
-            mu_gen, sigma_gen = fid.calculate_activation_statistics(all_samples, session, 100, verbose=True)
-            try:
-                _fid_score = fid.calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
-            except Exception as e:
-                print(e)
-                _fid_score = 10e4
-            print("calculated IS and FID")
+            _inception_score, _fid_score = fid.calc_IS_and_FID(all_samples, session, (mu_real, sigma_real), 100, True)
+            # _inception_score = lib.inception_score.get_inception_score(list(all_samples), sess=session)
+            # mu_gen, sigma_gen = fid.calculate_activation_statistics(all_samples, session, 100, verbose=True)
+            # try:
+            #     _fid_score = fid.calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
+            # except Exception as e:
+            #     print(e)
+            #     _fid_score = 10e4
+            # print("calculated IS and FID")
             return _inception_score, _fid_score
 
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)

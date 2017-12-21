@@ -61,7 +61,68 @@ def _get_inception_layer(sess):
                   new_shape.append(s)
               o._shape = tf.TensorShape(new_shape)
     return pool3
+
+
+def _get_inception_score_layer(sess):
+    pool3 = sess.graph.get_tensor_by_name('FID_Inception_Net/pool_3:0')
+    ops = pool3.graph.get_operations()
+    for op_idx, op in enumerate(ops):
+        for o in op.outputs:
+            shape = o.get_shape()
+            shape = [s.value for s in shape]
+            new_shape = []
+            for j, s in enumerate(shape):
+                if s == 1 and j == 0:
+                    new_shape.append(None)
+                else:
+                    new_shape.append(s)
+            o._shape = tf.TensorShape(new_shape)
+    w = sess.graph.get_operation_by_name("FID_Inception_Net/softmax/logits/MatMul").inputs[1]
+    logits = tf.matmul(tf.squeeze(pool3), w)
+    softmax = tf.nn.softmax(logits)
+    return softmax
 #-------------------------------------------------------------------------------
+
+
+def get_activations_and_sm(images, sess, batch_size=50, verbose=False):
+    """Calculates the activations of the pool_3 layer for all images.
+
+    Params:
+    -- images      : Numpy array of dimension (n_images, hi, wi, 3). The values
+                     must lie between 0 and 256.
+    -- sess        : current session
+    -- batch_size  : the images numpy array is split into batches with batch size
+                     batch_size. A reasonable batch size depends on the disposable hardware.
+    -- verbose    : If set to True and parameter out_step is given, the number of calculated
+                     batches is reported.
+    Returns:
+    -- A numpy array of dimension (num images, 2048) that contains the
+       activations of the given tensor when feeding inception with the query tensor.
+    """
+    inception_layer = _get_inception_layer(sess)
+    inception_softmax_layer = _get_inception_score_layer(sess)
+    d0 = images.shape[0]
+    if batch_size > d0:
+        print("warning: batch size is bigger than the data size. setting batch size to data size")
+        batch_size = d0
+    n_batches = d0//batch_size
+    n_used_imgs = n_batches*batch_size
+    pred_arr = np.empty((n_used_imgs,2048))
+    sm_pred_arr = []
+    for i in range(n_batches):
+        if verbose:
+            print("\rPropagating batch %d/%d" % (i+1, n_batches), end="")
+        start = i*batch_size
+        end = start + batch_size
+        batch = images[start:end]
+        il, isl = sess.run([inception_layer, inception_softmax_layer],
+                        {'FID_Inception_Net/ExpandDims:0': batch})
+        pred_arr[start:end] = il.reshape(batch_size,-1)
+        sm_pred_arr.append(isl)
+    sm_pred = np.concatenate(sm_pred_arr, 0)
+    if verbose:
+        print(" done")
+    return pred_arr, sm_pred
 
 
 def get_activations(images, sess, batch_size=50, verbose=False):
@@ -128,6 +189,37 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2):
     if np.isnan(dist):
         raise InvalidFIDException("nan occured in distance calculation.")
     return dist
+
+
+def calculate_inception_score(act, splits=10):
+    scores = []
+    for i in range(splits):
+        part = act[(i * act.shape[0] // splits): ((i + 1) * act.shape[0] // splits), :]
+        kl = part * (np.log(part) - np.log(np.expand_dims(np.mean(part, 0), 0)))
+        kl = np.mean(np.sum(kl, 1))
+        scores.append(np.exp(kl))
+    return np.mean(scores), np.std(scores)
+
+
+def calc_IS_and_FID(images, session, realstats, batsize, verbose=False):
+    print("calculating stats")
+    act, act_sm = get_activations_and_sm(images, session, batsize, verbose)
+    mu_gen = np.mean(act, axis=0)
+    sigma_gen = np.cov(act, rowvar=False)
+
+    mu_real, sigma_real = realstats
+
+    print("calculating IS")
+    IS = calculate_inception_score(act_sm)
+    print("calculating FID")
+    try:
+        FID = calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
+    except Exception as e:
+        print(e)
+        FID = 1e4
+    print("DONE")
+    return IS, FID
+
 #-------------------------------------------------------------------------------
 
 
