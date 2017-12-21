@@ -37,7 +37,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
     lib.plot.logdir = log_dir
     print("log dir set to {}".format(lib.plot.logdir))
     # dump locals() for settings
-    with open("{}/settings.dict", "w") as f:
+    with open("{}/settings.dict".format(log_dir), "w") as f:
         loca = {}
         loca.update(locals())
         del loca["f"]
