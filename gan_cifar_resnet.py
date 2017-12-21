@@ -432,7 +432,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
 
         for name,grads_and_vars in [('G', gen_gv), ('D', disc_gv)]:
-            print "{} Params:".format(name)
+            print ("{} Params:".format(name))
             total_param_count = 0
             for g, v in grads_and_vars:
                 shape = v.get_shape()
@@ -444,25 +444,25 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                 total_param_count += param_count
 
                 if g == None:
-                    print "\t{} ({}) [no grad!]".format(v.name, shape_str)
+                    print ("\t{} ({}) [no grad!]".format(v.name, shape_str))
                 else:
-                    print "\t{} ({})".format(v.name, shape_str)
-            print "Total param count: {}".format(
+                    print ("\t{} ({})".format(v.name, shape_str))
+            print ("Total param count: {}".format(
                 locale.format("%d", total_param_count, grouping=True)
-            )
+            ))
 
         session.run(tf.initialize_all_variables())
 
         gen = inf_train_gen()
 
-        for iteration in xrange(ITERS):
+        for iteration in range(ITERS):
             # TRAINING
             start_time = time.time()
 
             if iteration > 0:
                 _ = session.run([gen_train_op], feed_dict={_iteration:iteration})
 
-            for i in xrange(N_CRITIC):
+            for i in range(N_CRITIC):
                 _data,_labels = gen.next()
                 if CONDITIONAL and ACGAN:
                     _disc_cost, _disc_wgan, _disc_acgan, _disc_acgan_acc, _disc_acgan_fake_acc, _ = session.run([disc_cost, disc_wgan, disc_acgan, disc_acgan_acc, disc_acgan_fake_acc, disc_train_op], feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration:iteration})
