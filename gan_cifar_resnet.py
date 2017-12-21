@@ -90,12 +90,12 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
     if not os.path.exists("cifar.fid.stats"):  # compute fid stats for CIFAR
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
         inception_path = "/tmp/imagenet"
-        print("check for inception model..", end=" ", flush = True)
+        print("check for inception model..")
         inception_path = fid.check_or_download_inception(inception_path)  # download inception if necessary
         print("ok")
 
         # loads all images into memory (this might require a lot of RAM!)
-        print("load images..", end=" ", flush = True)
+        print("load images..")
         images = []
         for imagebatch, _ in dev_gen:
             images.append(imagebatch)
@@ -105,11 +105,11 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         images = list(allimages)
         print("%d images found and loaded" % len(images))
 
-        print("create inception graph..", end=" ", flush = True)
+        print("create inception graph..")
         fid.create_inception_graph(inception_path)  # load the graph into the current TF graph
         print("ok")
 
-        print("calculte FID stats..", end=" ", flush = True)
+        print("calculte FID stats..")
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             mu, sigma = fid.calculate_activation_statistics(images, sess, batch_size=100)
