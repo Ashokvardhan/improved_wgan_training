@@ -310,9 +310,9 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         disc_wgan = tf.add_n(disc_costs) / len(DEVICES_A)
         # for more logging
         scorediff = tf.add_n(scorediff_acc) / len(DEVICES_A)
-        gps_all = tf.add_n(gps_all_acc) / len(DEVICES_A)
-        gps_pos = tf.add_n(gps_pos_acc) / len(DEVICES_A)
-        gps_neg = tf.add_n(gps_neg_acc) / len(DEVICES_A)
+        gps_all = tf.add_n(gps_all_acc) / len(DEVICES_B)
+        gps_pos = tf.add_n(gps_pos_acc) / len(DEVICES_B)
+        gps_neg = tf.add_n(gps_neg_acc) / len(DEVICES_B)
 
         if CONDITIONAL and ACGAN:
             disc_acgan = tf.add_n(disc_acgan_costs) / len(DEVICES_A)
