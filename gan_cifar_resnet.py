@@ -204,7 +204,10 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
     # endregion
 
-    with tf.Session() as session:
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+
+    with tf.Session(config=config) as session:
 
         _iteration = tf.placeholder(tf.int32, shape=None)
         all_real_data_int = tf.placeholder(tf.int32, shape=[BATCH_SIZE, OUTPUT_DIM])
