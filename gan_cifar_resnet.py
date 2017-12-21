@@ -11,7 +11,7 @@ import tflib.ops.batchnorm
 import tflib.save_images
 import tflib.cifar10
 import tflib.inception_score
-# import tflib.plot
+import tflib.plot
 
 import numpy as np
 import tensorflow as tf
