@@ -117,7 +117,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             np.savez_compressed("cifar.fid.stats", mu=mu, sigma=sigma)
         print("finished")
 
-    f = np.load("cifar.fid.stats")
+    f = np.load("cifar.fid.stats.npz")
     mu_real, sigma_real = f['mu'][:], f['sigma'][:]
     # endregion
 
@@ -415,14 +415,15 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         fake_labels_100 = tf.cast(tf.random_uniform([100])*10, tf.int32)
         samples_100 = Generator(100, fake_labels_100)
 
-        def get_inception_score(n):
+        def get_IS_and_FID(n):
             all_samples = []
             for i in xrange(n/100):
                 all_samples.append(session.run(samples_100))
             all_samples = np.concatenate(all_samples, axis=0)
             all_samples = ((all_samples+1.)*(255.99/2)).astype('int32')
             all_samples = all_samples.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
-            return lib.inception_score.get_inception_score(list(all_samples))
+            inception_score = lib.inception_score.get_inception_score(list(all_samples))
+            fid_score = fid.calculate_activation_statistics()
 
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
 
