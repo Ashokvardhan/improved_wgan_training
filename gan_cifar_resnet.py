@@ -32,7 +32,7 @@ from util import argprun
 def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         n_gpus=1, normalization_g=True, normalization_d=False,
         batch_size=64, iters=110000, penalty_weight=10,
-        one_sided=True, output_dim=3072, lr=2e-4, data_dir='/srv/denis/tfvision_datasets/cifar-10-batches-py/',
+        one_sided=True, output_dim=3072, lr=2e-4, data_dir='/srv/denis/tfvision_datasets/cifar-10-batches-py',
         inception_frequency=1000, conditional=False, acgan=False, log_dir='default_log',):
     # Download CIFAR-10 (Python version) at
     # https://www.cs.toronto.edu/~kriz/cifar.html and fill in the path to the
