@@ -102,6 +102,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
         _use_train_for_stats = True
         if _use_train_for_stats:
+            print("using train data for FID stats")
             for imagebatch, _ in train_gen():
                 images.append(imagebatch)
 
@@ -119,7 +120,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         print("calculate FID stats..")
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
-            mu, sigma = fid.calculate_activation_statistics(images, sess, batch_size=100)
+            mu, sigma = fid.calculate_activation_statistics(images, sess, batch_size=100, verbose=True)
             np.savez_compressed("cifar.fid.stats", mu=mu, sigma=sigma)
         print("finished")
 
