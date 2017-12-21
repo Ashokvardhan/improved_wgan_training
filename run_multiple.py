@@ -5,7 +5,7 @@ def runrun(dim_g=128, dim_d=128, critic_iters=5,
         n_gpus=1, normalization_g=True, normalization_d=False,
         batch_size=64, iters=110000, penalty_weight="0.1 1 5 100 500",
         one_sided=True, output_dim=3072, lr=2e-4, data_dir='',
-        inception_frequency=1000, conditional=False, acgan=False, log_dir='exp', gpu=0):
+        inception_frequency=1000, conditional=False, acgan=False, log_dir='exp', gpu=0, expcount=1):
 
     import os
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
@@ -19,8 +19,6 @@ def runrun(dim_g=128, dim_d=128, critic_iters=5,
     logdir = log_dir
     logdir += ("_lp" if one_sided else "_gp")
     logdir += "_{}"
-
-    expcount = 1
 
     pws = map(float, penalty_weight.split())
 
