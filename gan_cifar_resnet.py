@@ -45,9 +45,9 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         f.write(str(loca))
         print("saved settings: {}".format(loca))
 
-    DATA_DIR = ''
+    DATA_DIR = data_dir
     if len(DATA_DIR) == 0:
-        raise Exception('Please specify path to data directory in gan_cifar.py!')
+        raise Exception('Please specify path to data directory in gan_cifar_resnet.py!')
 
     N_GPUS = n_gpus
     if N_GPUS not in [1,2]:
