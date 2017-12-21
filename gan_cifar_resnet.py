@@ -87,7 +87,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
     lib.print_model_settings(locals().copy())
 
     # region cifar FID
-    if not os.path.exists("cifar.fid.stats"):  # compute fid stats for CIFAR
+    if not os.path.exists("cifar.fid.stats.npz"):  # compute fid stats for CIFAR
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
         inception_path = "/tmp/imagenet"
         print("check for inception model..")
