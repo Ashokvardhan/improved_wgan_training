@@ -32,8 +32,8 @@ from util import argprun
 def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         n_gpus=1, normalization_g=True, normalization_d=False,
         batch_size=64, iters=110000, penalty_weight=10,
-        one_sided=True, output_dim=3072, lr=2e-4, data_dir='',
-        inception_frequency=1000, conditional=False, acgan=False, log_dir='',):
+        one_sided=True, output_dim=3072, lr=2e-4, data_dir='/srv/denis/tfvision_datasets/cifar-10-batches-py/',
+        inception_frequency=1000, conditional=False, acgan=False, log_dir='default_log',):
     # Download CIFAR-10 (Python version) at
     # https://www.cs.toronto.edu/~kriz/cifar.html and fill in the path to the
     # extracted files here!
@@ -80,7 +80,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
     if CONDITIONAL and (not ACGAN) and (not NORMALIZATION_D):
         print("WARNING! Conditional model without normalization in D might be effectively unconditional!")
 
-    DEVICES = ['/gpu:{}'.format(i) for i in xrange(N_GPUS)]
+    DEVICES = ['/gpu:{}'.format(i) for i in range(N_GPUS)]
     if len(DEVICES) == 1: # Hack because the code assumes 2 GPUs
         DEVICES = [DEVICES[0], DEVICES[0]]
 
