@@ -345,7 +345,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                 slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
                 if ONE_SIDED is True:
                     gradient_penalty = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
-                    gp_pos = gradient_penalty
+                    gp_pos = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
                     gp_neg = tf.constant(0.)
                 else:
                     gradient_penalty = LAMBDA *tf.reduce_mean((slopes-1.)**2)
@@ -429,7 +429,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             all_samples = np.concatenate(all_samples, axis=0)
             all_samples = ((all_samples+1.)*(255.99/2)).astype('int32')
             all_samples = all_samples.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
-            _inception_score = lib.inception_score.get_inception_score(list(all_samples))
+            _inception_score = lib.inception_score.get_inception_score(list(all_samples), sess=session)
             mu_gen, sigma_gen = fid.calculate_activation_statistics(all_samples, session, 100, verbose=True)
             try:
                 _fid_score = fid.calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)

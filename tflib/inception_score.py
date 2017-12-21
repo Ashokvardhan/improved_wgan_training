@@ -22,7 +22,7 @@ softmax = None
 
 # Call this function with list of images. Each of elements should be a 
 # numpy array with values ranging from 0 to 255.
-def get_inception_score(images, splits=10):
+def get_inception_score(images, splits=10, sess=None):
   assert(type(images) == list)
   assert(type(images[0]) == np.ndarray)
   assert(len(images[0].shape) == 3)
@@ -33,7 +33,8 @@ def get_inception_score(images, splits=10):
     img = img.astype(np.float32)
     inps.append(np.expand_dims(img, 0))
   bs = 100              # batch size
-  with tf.Session() as sess:
+
+  if sess:
     preds = []
     n_batches = int(math.ceil(float(len(inps)) / float(bs)))
     for i in range(n_batches):
@@ -51,6 +52,8 @@ def get_inception_score(images, splits=10):
       kl = np.mean(np.sum(kl, 1))
       scores.append(np.exp(kl))
     return np.mean(scores), np.std(scores)
+  else:
+    raise Exception("session must be provided")
 
 # This function is called automatically.
 def _init_inception():
