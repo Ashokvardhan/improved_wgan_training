@@ -436,6 +436,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             except Exception as e:
                 print(e)
                 _fid_score = 10e4
+            print("calculated IS and FID")
             return _inception_score, _fid_score
 
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)

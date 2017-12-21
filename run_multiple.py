@@ -14,6 +14,8 @@ def runrun(dim_g=128, dim_d=128, critic_iters=5,
     from tensorflow.python.client import device_lib
     print("VISIBLE DEVICES {}".format(str(device_lib.list_local_devices())))
 
+    print("\n\n\n")
+
     from gan_cifar_resnet import run
 
     logdir = log_dir

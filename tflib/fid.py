@@ -121,6 +121,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2):
     Raises:
     -- InvalidFIDException if nan occures.
     """
+    print("calculating distance")
     m = np.square(mu1 - mu2).sum()
     s = sp.linalg.sqrtm(np.dot(sigma1, sigma2))
     dist = m + np.trace(sigma1+sigma2 - 2*s)
@@ -146,6 +147,7 @@ def calculate_activation_statistics(images, sess, batch_size=50, verbose=False):
     -- sigma : The covariance matrix of the activations of the pool_3 layer of
                the incption model.
     """
+    print("calculating stats")
     act = get_activations(images, sess, batch_size, verbose)
     mu = np.mean(act, axis=0)
     sigma = np.cov(act, rowvar=False)
