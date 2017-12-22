@@ -435,7 +435,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             #     _inception_score, _fid_score = fid.calc_IS_and_FID(all_samples, (mu_real, sigma_real), 100, verbose=True, session=_fid_session)
             # _inception, _inception_std = _inception_score
             _fid_score = 0
-            _inception_score = lib.inception_score.get_inception_score(list(all_samples), sess=session)
+            _inception_score = lib.inception_score.get_inception_score(list(all_samples))
             # print(_inception_score, _inception_score_check)
             # embed()
             # assert(_inception_score[0] == _inception_score_check[0])
