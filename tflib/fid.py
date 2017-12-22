@@ -91,7 +91,7 @@ def get_activations(images, sess, batch_size=50, verbose=False):
         pred = sess.run(inception_layer, {'FID_Inception_Net/ExpandDims:0': batch})
         pred_arr[start:end] = pred.reshape(batch_size,-1)
     if verbose:
-        print(" done")
+        print(" done, {} activations from {} images".format(len(pred_arr), len(images)))
     return pred_arr
 #-------------------------------------------------------------------------------
 
