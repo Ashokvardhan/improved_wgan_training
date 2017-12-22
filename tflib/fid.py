@@ -66,24 +66,26 @@ def _get_inception_layer(sess):
 
 
 def _get_inception_score_layers(sess):
-    pool3 = sess.graph.get_tensor_by_name('FID_Inception_Net/pool_3:0')
-    ops = pool3.graph.get_operations()
-    for op_idx, op in enumerate(ops):
-        for o in op.outputs:
-            shape = o.get_shape()
-            if shape._dims is not None:
-                shape = [s.value for s in shape]
-                new_shape = []
-                for j, s in enumerate(shape):
-                    if s == 1 and j == 0:
-                        new_shape.append(None)
-                    else:
-                        new_shape.append(s)
-            o._shape = tf.TensorShape(new_shape)
-            print(o)
-    w = sess.graph.get_operation_by_name("FID_Inception_Net/softmax/logits/MatMul").inputs[1]
-    logits = tf.matmul(tf.squeeze(pool3), w)
-    softmax = tf.nn.softmax(logits)
+    with tf.Session() as sess:
+        pool3 = sess.graph.get_tensor_by_name('FID_Inception_Net/pool_3:0')
+        ops = pool3.graph.get_operations()
+        for op_idx, op in enumerate(ops):
+            for o in op.outputs:
+                shape = o.get_shape()
+                if shape._dims is not None:
+                    shape = [s.value for s in shape]
+                    new_shape = []
+                    for j, s in enumerate(shape):
+                        if s == 1 and j == 0:
+                            new_shape.append(None)
+                        else:
+                            new_shape.append(s)
+                o._shape = tf.TensorShape(new_shape)
+                print(o)
+        w = sess.graph.get_operation_by_name("FID_Inception_Net/softmax/logits/MatMul").inputs[1]
+        logits = tf.matmul(tf.squeeze(pool3), w)
+        softmax = tf.nn.softmax(logits)
+
     return pool3, softmax
 #-------------------------------------------------------------------------------
 
