@@ -207,7 +207,7 @@ def calculate_inception_score(act, splits=10):
     return np.mean(scores), np.std(scores)
 
 
-def calc_IS_and_FID(images, session, realstats, batsize, verbose=False):
+def calc_IS_and_FID(images, realstats, batsize, verbose=False, session=None):
     print("calculating stats")
     act, act_sm = get_activations_and_sm(images, session, batsize, verbose)
 

@@ -432,7 +432,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             all_samples = ((all_samples+1.)*(255.99/2)).astype('int32')
             all_samples = all_samples.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
             print("getting IS and FID")
-            _inception_score, _fid_score = fid.calc_IS_and_FID(all_samples, session, (mu_real, sigma_real), 100, True)
+            with tf.Session() as _fid_session:
+                _inception_score, _fid_score = fid.calc_IS_and_FID(all_samples, (mu_real, sigma_real), 100, verbose=True, _fid_session)
             _inception, _inception_std = _inception_score
 
             # _inception_score_check = lib.inception_score.get_inception_score(list(all_samples), sess=session)
@@ -514,7 +515,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             lib.plot.plot('time', time.time() - start_time)
 
             if iteration % INCEPTION_FREQUENCY == INCEPTION_FREQUENCY-1:
-                inception_score, fid_score = get_IS_and_FID(50000)
+                inception_score, fid_score = get_IS_and_FID(500)        # TODO change back to 50k
                 lib.plot.plot('inception', inception_score[0])
                 lib.plot.plot('inception_std', inception_score[1])      # std of inception over 10 splits
                 lib.plot.plot('fid', fid_score)
