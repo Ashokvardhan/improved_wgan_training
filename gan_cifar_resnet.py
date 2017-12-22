@@ -113,13 +113,13 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                 images.append(imagebatch)
 
         allimages = np.concatenate(images, axis=0)
-        allimages = ((allimages+1.)*(255.99/2)).astype('int32')
+        # allimages = ((allimages+1.)*(255.99/2)).astype('int32')
         allimages = allimages.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
         # images = list(allimages)
         images = allimages
         print("%d images found and loaded: {}" % len(images), images.shape)
 
-        embed()
+        # embed()
 
         print("calculate FID stats..")
         with tf.Session() as sess:
