@@ -252,10 +252,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
     # endregion
 
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-
-    with tf.Session(config=config) as session:
+    with tf.Session() as session:
 
         _iteration_gan = tf.placeholder(tf.int32, shape=None)
         all_real_data_int = tf.placeholder(tf.int32, shape=[BATCH_SIZE, OUTPUT_DIM])
@@ -432,6 +429,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             all_samples = ((all_samples+1.)*(255.99/2)).astype('int32')
             all_samples = all_samples.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
             print("getting IS and FID")
+            embed()
             with tf.Session() as _fid_session:
                 _inception_score, _fid_score = fid.calc_IS_and_FID(all_samples, (mu_real, sigma_real), 100, verbose=True, session=_fid_session)
             _inception, _inception_std = _inception_score
@@ -486,7 +484,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             # TRAINING
             start_time = time.time()
 
-            embed()
+            # embed()
 
             _gen_cost = 0
             if iteration > 0:

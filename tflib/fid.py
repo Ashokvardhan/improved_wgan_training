@@ -210,7 +210,7 @@ def calculate_inception_score(act, splits=10):
 def calc_IS_and_FID(images, realstats, batsize, verbose=False, session=None):
     print("calculating stats")
     act, act_sm = get_activations_and_sm(images, session, batsize, verbose)
-
+    embed()
     print("calculating IS")
     IS = calculate_inception_score(act_sm)
 
