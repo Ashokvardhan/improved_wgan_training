@@ -257,7 +257,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
     with tf.Session(config=config) as session:
 
-        _iteration = tf.placeholder(tf.int32, shape=None)
+        _iteration_gan = tf.placeholder(tf.int32, shape=None)
         all_real_data_int = tf.placeholder(tf.int32, shape=[BATCH_SIZE, OUTPUT_DIM])
         all_real_labels = tf.placeholder(tf.int32, shape=[BATCH_SIZE])
 
@@ -379,7 +379,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         disc_params = lib.params_with_name('Discriminator.')
 
         if DECAY:
-            decay = tf.maximum(0., 1.-(tf.cast(_iteration, tf.float32)/ITERS))
+            decay = tf.maximum(0., 1.-(tf.cast(_iteration_gan, tf.float32)/ITERS))
         else:
             decay = 1.
 
@@ -487,17 +487,17 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
             _gen_cost = 0
             if iteration > 0:
-                _gen_cost, _ = session.run([gen_cost, gen_train_op], feed_dict={_iteration:iteration})
+                _gen_cost, _ = session.run([gen_cost, gen_train_op], feed_dict={_iteration_gan: iteration})
 
             for i in range(N_CRITIC):
                 _data,_labels = gen.next()
                 if CONDITIONAL and ACGAN:
-                    _disc_cost, _disc_wgan, _disc_acgan, _disc_acgan_acc, _disc_acgan_fake_acc, _ = session.run([disc_cost, disc_wgan, disc_acgan, disc_acgan_acc, disc_acgan_fake_acc, disc_train_op], feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration:iteration})
+                    _disc_cost, _disc_wgan, _disc_acgan, _disc_acgan_acc, _disc_acgan_fake_acc, _ = session.run([disc_cost, disc_wgan, disc_acgan, disc_acgan_acc, disc_acgan_fake_acc, disc_train_op], feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration_gan:iteration})
                 else:
                     _disc_cost, _scorediff, _gps_all, _gps_pos, _gps_neg, _ \
                         = session.run(
                     [disc_cost,  scorediff,  gps_all,  gps_pos,  gps_neg,  disc_train_op],
-                        feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration:iteration})
+                        feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration_gan:iteration})
 
             lib.plot.plot('cost', _disc_cost)
             # extra plot
