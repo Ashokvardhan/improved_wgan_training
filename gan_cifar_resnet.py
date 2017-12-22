@@ -119,6 +119,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         images = allimages
         print("%d images found and loaded: {}" % len(images), images.shape)
 
+        embed()
+
         print("calculate FID stats..")
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
