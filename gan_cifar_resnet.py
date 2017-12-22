@@ -516,7 +516,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             lib.plot.plot('time', time.time() - start_time)
 
             if iteration % INCEPTION_FREQUENCY == INCEPTION_FREQUENCY-1:
-                inception_score, fid_score = get_IS_and_FID(500)        # TODO change back to 50k
+                inception_score, fid_score = get_IS_and_FID(50000)
                 lib.plot.plot('inception', inception_score[0])
                 lib.plot.plot('inception_std', inception_score[1])      # std of inception over 10 splits
                 lib.plot.plot('fid', fid_score)
