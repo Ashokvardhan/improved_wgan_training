@@ -486,6 +486,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             # TRAINING
             start_time = time.time()
 
+            embed()
+
             _gen_cost = 0
             if iteration > 0:
                 _gen_cost, _ = session.run([gen_cost, gen_train_op], feed_dict={_iteration_gan: iteration})
