@@ -440,13 +440,13 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             # embed()
             # assert(_inception_score[0] == _inception_score_check[0])
             # print("IS calculation same as old")
-            # mu_gen, sigma_gen = fid.calculate_activation_statistics(all_samples, session, 100, verbose=True)
-            # try:
-            #     _fid_score = fid.calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
-            # except Exception as e:
-            #     print(e)
-            #     _fid_score = 10e4
-            # print("calculated IS and FID")
+            mu_gen, sigma_gen = fid.calculate_activation_statistics(all_samples, session, 100, verbose=True)
+            try:
+                _fid_score = fid.calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
+            except Exception as e:
+                print(e)
+                _fid_score = 10e4
+            print("calculated IS and FID")
             return _inception_score, _fid_score
 
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
