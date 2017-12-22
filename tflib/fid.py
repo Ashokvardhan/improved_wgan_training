@@ -65,7 +65,7 @@ def _get_inception_layer(sess):
     return pool3
 
 
-def _get_inception_score_layer(sess):
+def _get_inception_score_layers(sess):
     pool3 = sess.graph.get_tensor_by_name('FID_Inception_Net/pool_3:0')
     ops = pool3.graph.get_operations()
     for op_idx, op in enumerate(ops):
@@ -80,10 +80,11 @@ def _get_inception_score_layer(sess):
                     else:
                         new_shape.append(s)
             o._shape = tf.TensorShape(new_shape)
+            print(o)
     w = sess.graph.get_operation_by_name("FID_Inception_Net/softmax/logits/MatMul").inputs[1]
     logits = tf.matmul(tf.squeeze(pool3), w)
     softmax = tf.nn.softmax(logits)
-    return softmax
+    return pool3, softmax
 #-------------------------------------------------------------------------------
 
 
@@ -102,8 +103,8 @@ def get_activations_and_sm(images, sess, batch_size=50, verbose=False):
     -- A numpy array of dimension (num images, 2048) that contains the
        activations of the given tensor when feeding inception with the query tensor.
     """
-    inception_layer = _get_inception_layer(sess)
-    inception_softmax_layer = _get_inception_score_layer(sess)
+    # inception_layer = _get_inception_layer(sess)
+    inception_layer, inception_softmax_layer = _get_inception_score_layers(sess)
     d0 = images.shape[0]
     if batch_size > d0:
         print("warning: batch size is bigger than the data size. setting batch size to data size")
