@@ -428,14 +428,14 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             all_samples = np.concatenate(all_samples, axis=0)
             all_samples = ((all_samples+1.)*(255.99/2)).astype('int32')
             all_samples = all_samples.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
-            print("getting IS and FID")
-            print(_iteration_gan)
-            embed()
-            with tf.Session() as _fid_session:
-                _inception_score, _fid_score = fid.calc_IS_and_FID(all_samples, (mu_real, sigma_real), 100, verbose=True, session=_fid_session)
-            _inception, _inception_std = _inception_score
-
-            # _inception_score_check = lib.inception_score.get_inception_score(list(all_samples), sess=session)
+            # print("getting IS and FID")
+            # print(_iteration_gan)
+            # embed()
+            # with tf.Session() as _fid_session:
+            #     _inception_score, _fid_score = fid.calc_IS_and_FID(all_samples, (mu_real, sigma_real), 100, verbose=True, session=_fid_session)
+            # _inception, _inception_std = _inception_score
+            _fid_score = 0
+            _inception_score = lib.inception_score.get_inception_score(list(all_samples), sess=session)
             # print(_inception_score, _inception_score_check)
             # embed()
             # assert(_inception_score[0] == _inception_score_check[0])
