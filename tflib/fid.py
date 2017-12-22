@@ -84,7 +84,7 @@ def get_activations(images, sess, batch_size=50, verbose=False):
     pred_arr = np.empty((n_used_imgs,2048))
     for i in range(n_batches):
         if verbose:
-            print("\rPropagating batch %d/%d" % (i+1, n_batches), end="", flush=True)
+            print("\rPropagating batch %d/%d" % (i+1, n_batches), end="")
         start = i*batch_size
         end = start + batch_size
         batch = images[start:end]
