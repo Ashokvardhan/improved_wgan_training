@@ -20,16 +20,16 @@ import tflib.plot
 
 from util import argprun
 
-def run(mode="wgan-gp", dim=64, critic_iters=5, n_gpus=1,
-        batch_size=5, iters=200000, penalty_weight=10,
-        one_sided=True, output_dim=64*64*3, data_dir='', log_dir):
+def run(dim=64, critic_iters=5, n_gpus=1,
+        batch_size=5, iters=100000, penalty_weight=10,
+        one_sided=False, output_dim=32*32*3, data_dir='', log_dir):
     # Download 64x64 ImageNet at http://image-net.org/small/download.php and
     # fill in the path to the extracted files here!
     DATA_DIR = data_dir
     if len(DATA_DIR) == 0:
         raise Exception('Please specify path to data directory in gan_64x64.py!')
 
-    MODE = mode # dcgan, wgan, wgan-gp, lsgan
+    MODE = "wgan-gp" # dcgan, wgan, wgan-gp, lsgan
     DIM = dim # Model dimensionality
     CRITIC_ITERS = critic_iters # How many iterations to train the critic for
     N_GPUS = n_gpus # Number of GPUs
@@ -605,7 +605,7 @@ def run(mode="wgan-gp", dim=64, critic_iters=5, n_gpus=1,
         # Train loop
         session.run(tf.initialize_all_variables())
         gen = inf_train_gen()
-        for iteration in xrange(ITERS):
+        for iteration in range(ITERS):
 
             start_time = time.time()
 
@@ -618,7 +618,7 @@ def run(mode="wgan-gp", dim=64, critic_iters=5, n_gpus=1,
                 disc_iters = 1
             else:
                 disc_iters = CRITIC_ITERS
-            for i in xrange(disc_iters):
+            for i in range(disc_iters):
                 _data = gen.next()
                 _disc_cost, _ = session.run([disc_cost, disc_train_op], feed_dict={all_real_data_conv: _data})
                 if MODE == 'wgan':

@@ -119,7 +119,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         images = allimages
         print("%d images found and loaded: {}" % len(images), images.shape)
 
-        # embed()
+        embed()
 
         print("calculate FID stats..")
         with tf.Session() as sess:
@@ -137,7 +137,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
     def nonlinearity(x):
         return tf.nn.relu(x)
 
-    def Normalize(name, inputs,labels=None):
+    def Normalize(name, inputs, labels=None):
         """This is messy, but basically it chooses between batchnorm, layernorm,
         their conditional variants, or nothing, depending on the value of `name` and
         the global hyperparam flags."""
@@ -147,9 +147,11 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             labels = None
 
         if ('Discriminator' in name) and NORMALIZATION_D:
+            assert(False)
             return lib.ops.layernorm.Layernorm(name,[1,2,3],inputs,labels=labels,n_labels=10)
         elif ('Generator' in name) and NORMALIZATION_G:
             if labels is not None:
+                assert(False)
                 return lib.ops.cond_batchnorm.Batchnorm(name,[0,2,3],inputs,labels=labels,n_labels=10)
             else:
                 return lib.ops.batchnorm.Batchnorm(name,[0,2,3],inputs,fused=True)
