@@ -87,7 +87,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
     lib.print_model_settings(locals().copy())
 
-    inception_path = "/tmp/imagenet"
+    inception_path = "/tmp/inception"
     print("check for inception model..")
     inception_path = fid.check_or_download_inception(inception_path)  # download inception if necessary
     print("ok")
