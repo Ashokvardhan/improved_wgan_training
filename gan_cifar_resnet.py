@@ -133,7 +133,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
     f = np.load("cifar.fid.stats.npz")
     mu_real, sigma_real = f['mu'][:], f['sigma'][:]
 
-    embed()
+    # embed()
 
     # endregion
 
