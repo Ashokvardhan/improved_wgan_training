@@ -119,7 +119,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         images = allimages
         print("%d images found and loaded: {}" % len(images), images.shape)
 
-        embed()
+        # embed()
 
         print("calculate FID stats..")
         with tf.Session() as sess:
@@ -128,8 +128,13 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             np.savez_compressed("cifar.fid.stats", mu=mu, sigma=sigma)
         print("finished")
 
+        # embed()
+
     f = np.load("cifar.fid.stats.npz")
     mu_real, sigma_real = f['mu'][:], f['sigma'][:]
+
+    embed()
+
     # endregion
 
     # region model
