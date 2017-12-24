@@ -115,7 +115,8 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2):
     """
     m = np.square(mu1 - mu2).sum()
     s = sp.linalg.sqrtm(np.dot(sigma1, sigma2))
-    dist = m + np.trace(sigma1+sigma2 - 2*s)
+    print("rank of sigma1: {}, rank of sigma2: {}".format(np.linalg.matrix_rank(sigma1), np.linalg.matrix_rank(sigma2)))
+    dist = m + np.trace(sigma1 + sigma2 - 2 * s)
     if np.isnan(dist):
         raise InvalidFIDException("nan occured in distance calculation.")
     return dist
