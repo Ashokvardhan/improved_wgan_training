@@ -11,7 +11,6 @@ import tflib.ops.conv2d
 import tflib.ops.batchnorm
 import tflib.save_images
 import tflib.cifar10
-import tflib.inception_score
 import tflib.plot
 from tflib import fid
 import glob
@@ -34,7 +33,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         n_gpus=1, normalization_g=True, normalization_d=False,
         batch_size=64, iters=110000, penalty_weight=10,
         one_sided=False, output_dim=3072, lr=2e-4, data_dir='/srv/denis/tfvision-datasets/cifar-10-batches-py',
-        inception_frequency=2000, conditional=False, acgan=False, log_dir='default_log',):
+        inception_frequency=2000, conditional=False, acgan=False, log_dir='default_log', run_fid=False):
     # Download CIFAR-10 (Python version) at
     # https://www.cs.toronto.edu/~kriz/cifar.html and fill in the path to the
     # extracted files here!
@@ -87,53 +86,56 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
     lib.print_model_settings(locals().copy())
 
-    inception_path = "/tmp/inception"
-    print("check for inception model..")
-    inception_path = fid.check_or_download_inception(inception_path)  # download inception if necessary
-    print("ok")
+    if run_fid:
+        inception_path = "/tmp/inception"
+        print("check for inception model..")
+        inception_path = fid.check_or_download_inception(inception_path)  # download inception if necessary
+        print("ok")
 
-    print("create inception graph..")
-    fid.create_inception_graph(inception_path)  # load the graph into the current TF graph
-    print("ok")
+        print("create inception graph..")
+        fid.create_inception_graph(inception_path)  # load the graph into the current TF graph
+        print("ok")
 
-    # region cifar FID
-    if not os.path.exists("cifar.fid.stats.npz"):  # compute fid stats for CIFAR
-        train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
+        # region cifar FID
+        if not os.path.exists("cifar.fid.stats.npz"):  # compute fid stats for CIFAR
+            train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
 
-        # loads all images into memory (this might require a lot of RAM!)
-        print("load images..")
-        images = []
-        for imagebatch, _ in dev_gen():
-            images.append(imagebatch)
-
-        _use_train_for_stats = True
-        if _use_train_for_stats:
-            print("using train data for FID stats")
-            for imagebatch, _ in train_gen():
+            # loads all images into memory (this might require a lot of RAM!)
+            print("load images..")
+            images = []
+            for imagebatch, _ in dev_gen():
                 images.append(imagebatch)
 
-        allimages = np.concatenate(images, axis=0)
-        # allimages = ((allimages+1.)*(255.99/2)).astype('int32')
-        allimages = allimages.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
-        # images = list(allimages)
-        images = allimages
-        print("%d images found and loaded: {}" % len(images), images.shape)
+            _use_train_for_stats = True
+            if _use_train_for_stats:
+                print("using train data for FID stats")
+                for imagebatch, _ in train_gen():
+                    images.append(imagebatch)
 
-        # embed()
+            allimages = np.concatenate(images, axis=0)
+            # allimages = ((allimages+1.)*(255.99/2)).astype('int32')
+            allimages = allimages.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
+            # images = list(allimages)
+            images = allimages
+            print("%d images found and loaded: {}" % len(images), images.shape)
 
-        print("calculate FID stats..")
-        with tf.Session() as sess:
-            sess.run(tf.global_variables_initializer())
-            mu, sigma = fid.calculate_activation_statistics(images, sess, batch_size=100, verbose=True)
-            np.savez_compressed("cifar.fid.stats", mu=mu, sigma=sigma)
-        print("finished")
+            # embed()
 
-        # embed()
+            print("calculate FID stats..")
+            with tf.Session() as sess:
+                sess.run(tf.global_variables_initializer())
+                mu, sigma = fid.calculate_activation_statistics(images, sess, batch_size=100, verbose=True)
+                np.savez_compressed("cifar.fid.stats", mu=mu, sigma=sigma)
+            print("finished")
 
-    f = np.load("cifar.fid.stats.npz")
-    mu_real, sigma_real = f['mu'][:], f['sigma'][:]
+            # embed()
 
-    # embed()
+        f = np.load("cifar.fid.stats.npz")
+        mu_real, sigma_real = f['mu'][:], f['sigma'][:]
+
+    embed()
+
+    import tflib.inception_score
 
     # endregion
 
@@ -450,14 +452,17 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             # embed()
             # assert(_inception_score[0] == _inception_score_check[0])
             # print("IS calculation same as old")
-            mu_gen, sigma_gen = fid.calculate_activation_statistics(all_samples, session, 100, verbose=True)
-            try:
-                _fid_score = fid.calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
-            except Exception as e:
-                print(e)
-                _fid_score = 10e4
-            print("calculated IS and FID")
-            return _inception_score, _fid_score
+            if run_fid:
+                mu_gen, sigma_gen = fid.calculate_activation_statistics(all_samples, session, 100, verbose=True)
+                try:
+                    _fid_score = fid.calculate_frechet_distance(mu_gen, sigma_gen, mu_real, sigma_real)
+                except Exception as e:
+                    print(e)
+                    _fid_score = 10e4
+                print("calculated IS and FID")
+                return _inception_score, _fid_score
+            else:
+                return _inception_score, 0
 
         train_gen, dev_gen = lib.cifar10.load(BATCH_SIZE, DATA_DIR)
 
