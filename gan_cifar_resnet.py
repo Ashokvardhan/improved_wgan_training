@@ -31,9 +31,9 @@ from util import argprun
 
 def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         n_gpus=1, normalization_g=True, normalization_d=False,
-        batch_size=64, iters=110000, penalty_weight=10,
+        batch_size=64, iters=100000, penalty_weight=10,
         one_sided=False, output_dim=3072, lr=2e-4, data_dir='/srv/denis/tfvision-datasets/cifar-10-batches-py',
-        inception_frequency=2000, conditional=False, acgan=False, log_dir='default_log', run_fid=False):
+        inception_frequency=1000, conditional=False, acgan=False, log_dir='default_log', run_fid=False):
     # Download CIFAR-10 (Python version) at
     # https://www.cs.toronto.edu/~kriz/cifar.html and fill in the path to the
     # extracted files here!
@@ -133,7 +133,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         f = np.load("cifar.fid.stats.npz")
         mu_real, sigma_real = f['mu'][:], f['sigma'][:]
 
-    embed()
+    # embed()
 
     import tflib.inception_score
 
