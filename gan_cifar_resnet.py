@@ -535,7 +535,9 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             for i in range(N_CRITIC):
                 _data,_labels = gen.next()
                 if CONDITIONAL and ACGAN:
-                    _disc_cost, _disc_wgan, _disc_acgan, _disc_acgan_acc, _disc_acgan_fake_acc, _ = session.run([disc_cost, disc_wgan, disc_acgan, disc_acgan_acc, disc_acgan_fake_acc, disc_train_op], feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration_gan:iteration})
+                    _disc_cost, _disc_wgan, _disc_acgan, _disc_acgan_acc, _disc_acgan_fake_acc, _ \
+                        = session.run([disc_cost, disc_wgan, disc_acgan, disc_acgan_acc, disc_acgan_fake_acc, disc_train_op],
+                            feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration_gan:iteration})
                 else:
                     _disc_cost, _scorediff, _gps_all, _gps_pos, _gps_neg, _ \
                         = session.run(
