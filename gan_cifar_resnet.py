@@ -33,7 +33,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         n_gpus=1, normalization_g=True, normalization_d=False,
         batch_size=64, iters=100000, penalty_weight=10,
         one_sided=False, output_dim=3072, lr=2e-4, data_dir='/srv/denis/tfvision-datasets/cifar-10-batches-py',
-        inception_frequency=1000, conditional=False, acgan=False, log_dir='default_log', run_fid=False):
+        inception_frequency=1000, conditional=False, acgan=False, log_dir='default_log', run_fid=False,
+        penalty_mode="grad"):   # grad or pagan or ot
     # Download CIFAR-10 (Python version) at
     # https://www.cs.toronto.edu/~kriz/cifar.html and fill in the path to the
     # extracted files here!
@@ -132,6 +133,9 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
         f = np.load("cifar.fid.stats.npz")
         mu_real, sigma_real = f['mu'][:], f['sigma'][:]
+
+    else:
+        print("  NOT RUNNING FID  !!! -- ()()()")
 
     # embed()
 
@@ -344,23 +348,45 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                     labels_splits[i],
                     labels_splits[len(DEVICES_A)+i],
                 ], axis=0)
-                alpha = tf.random_uniform(
-                    shape=[BATCH_SIZE/len(DEVICES_A),1],
-                    minval=0.,
-                    maxval=1.
-                )
-                differences = fake_data - real_data
-                interpolates = real_data + (alpha*differences)
-                gradients = tf.gradients(Discriminator(interpolates, labels)[0], [interpolates])[0]
-                slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
-                if ONE_SIDED is True:
-                    gradient_penalty = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
-                    gp_pos = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
+                if penalty_mode == "grad":
+                    alpha = tf.random_uniform(
+                        shape=[BATCH_SIZE/len(DEVICES_A),1],
+                        minval=0.,
+                        maxval=1.
+                    )
+                    differences = fake_data - real_data
+                    interpolates = real_data + (alpha*differences)
+                    gradients = tf.gradients(Discriminator(interpolates, labels)[0], [interpolates])[0]
+                    slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
+                    if ONE_SIDED is True:
+                        gradient_penalty = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
+                        gp_pos = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
+                        gp_neg = tf.constant(0.)
+                    else:
+                        gradient_penalty = LAMBDA *tf.reduce_mean((slopes-1.)**2)
+                        gp_pos = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
+                        gp_neg = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., -np.infty, 0)**2)
+                elif penalty_mode == "pagan" or penalty_mode == "ot":
+                    _EPS = 1e-6
+                    penalty_D_real = Discriminator(real_data, labels)   # TODO: check make sure labels don't have influence
+                    penalty_D_fake = Discriminator(fake_data, labels)
+                    real_fake_dist = tf.norm(real_data - fake_data, ord=2, axis=1)     # data are vectors?
+
+                    if penalty_mode == "pagan":
+                        penalty_vecs = tf.clip_by_value(
+                                            (tf.abs(penalty_D_real - penalty_D_fake)
+                                                / tf.clip_by_value(real_fake_dist, _EPS, np.infty))
+                                            - 1,
+                                        0, np.infty) ** 2
+                    elif penalty_mode == "ot":
+                        penalty_vecs = tf.clip_by_value(
+                                            penalty_D_real - penalty_D_fake - real_fake_dist,
+                                        0, np.infty) ** 2
+                    gradient_penalty = LAMBDA * tf.reduce_mean(penalty_vecs)
+                    gp_pos = tf.constant(0.)
                     gp_neg = tf.constant(0.)
                 else:
-                    gradient_penalty = LAMBDA *tf.reduce_mean((slopes-1.)**2)
-                    gp_pos = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
-                    gp_neg = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., -np.infty, 0)**2)
+                    raise Exception("unknown penalty mode {}".format(penalty_mode))
                 disc_costs.append(gradient_penalty)
                 gps_all_acc.append(gradient_penalty)
                 gps_pos_acc.append(gp_pos)
