@@ -378,7 +378,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
                     if penalty_mode == "pagan":
                         penalty_vecs = tf.clip_by_value(
-                                            (tf.abs(_D_real - _D_fake)
+                                            ((_D_real - _D_fake)
                                                 / tf.clip_by_value(real_fake_dist, _EPS, np.infty))
                                             - 1,
                                         0, np.infty) ** 2
