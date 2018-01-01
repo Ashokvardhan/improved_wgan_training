@@ -374,6 +374,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                     _D_real, _ = Discriminator(real_data, labels)   # TODO: check make sure labels don't have influence
                     _D_fake, _ = Discriminator(fake_data, labels)
                     real_fake_dist = tf.norm(real_data - fake_data, ord=2, axis=1)     # data are vectors: (64, 3072) from get_shape()
+                    print("DIST SHAPE", real_fake_dist.get_shape())
 
                     if penalty_mode == "pagan":
                         penalty_vecs = tf.clip_by_value(
