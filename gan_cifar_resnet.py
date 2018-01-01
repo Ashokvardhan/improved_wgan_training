@@ -46,6 +46,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         loca.update(locals())
         del loca["f"]
         del loca["loca"]
+        if penalty_mode != "grad":
+            del loca["one_sided"]
         f.write(str(loca))
         print("saved settings: {}".format(loca))
 

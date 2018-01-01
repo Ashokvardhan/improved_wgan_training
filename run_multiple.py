@@ -20,7 +20,8 @@ def runrun(dim_g=128, dim_d=128, critic_iters=5,
     from gan_cifar_resnet import run
 
     logdir = log_dir
-    logdir += ("_lp" if one_sided else "_gp")
+    if penalty_mode == "grad":
+        logdir += ("_lp" if one_sided else "_gp")
     logdir += "_{}"
 
     expcount = 1
