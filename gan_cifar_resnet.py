@@ -370,9 +370,9 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                         gp_neg = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., -np.infty, 0)**2)
                 elif penalty_mode == "pagan" or penalty_mode == "ot":
                     _EPS = 1e-6
+                    print("SHAPES OF REAL AND FAKE DATA FOR PAGAN AND OT: ", real_data.get_shape(), fake_data.get_shape())
                     _D_real, _ = Discriminator(real_data, labels)   # TODO: check make sure labels don't have influence
                     _D_fake, _ = Discriminator(fake_data, labels)
-                    print("SHAPES: ", _D_real.get_shape(), _D_fake.get_shap())
                     real_fake_dist = tf.norm(real_data - fake_data, ord=2, axis=1)     # data are vectors?
 
                     if penalty_mode == "pagan":
@@ -385,6 +385,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                         penalty_vecs = tf.clip_by_value(
                                             _D_real - _D_fake - real_fake_dist,
                                         0, np.infty) ** 2
+                    print("PENALTY VEC SHAPE: ", penalty_vecs.get_shape())
                     gradient_penalty = LAMBDA * tf.reduce_mean(penalty_vecs)
                     gp_pos = tf.constant(0.)
                     gp_neg = tf.constant(0.)
