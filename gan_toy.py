@@ -8,19 +8,40 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
 import sklearn.datasets
 
-import tflib as lib
-import tflib.ops.linear
-import tflib.plot
-
 from util import argprun
+
 
 def run(mode="wgan-gp", dataset='8gaussians', dim=512,
         critic_iters=5, fixed_generator=False,
         batch_size=256, iters=100000, penalty_weight=0.1,
-        one_sided=True):
+        one_sided=True, penalty_mode="grad", log_dir="toy_log_default", gpu=0):       # grad or pagan or ot
+
+    loca = locals().copy()
+
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
+    os.environ["CUDA_VISIBLE_DEVICES"] = "{}".format(gpu)
+
+    from tensorflow.python.client import device_lib
+    print("VISIBLE DEVICES {}".format(str(device_lib.list_local_devices())))
+
+    print("\n\n\n")
+
+    import tensorflow as tf
+    import tflib as lib
+    import tflib.ops.linear
+    import tflib.plot
+
+    lib.plot.logdir = log_dir
+    print("log dir set to {}".format(lib.plot.logdir))
+
+    with open("{}/settings.dict".format(log_dir), "w") as f:
+        if penalty_mode != "grad":
+            del loca["one_sided"]
+        f.write(str(loca))
+        print("saved settings: {}".format(loca))
+
     MODE = mode # wgan or wgan-gp
     DATASET = dataset # 8gaussians, 25gaussians, swissroll
     DIM = dim # Model dimensionality
@@ -34,7 +55,7 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
 
     ONE_SIDED = one_sided
 
-    lib.print_model_settings(locals().copy())
+    lib.print_model_settings(loca)
 
     def ReLULayer(name, n_in, n_out, inputs):
         output = lib.ops.linear.Linear(
@@ -86,11 +107,35 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
         disc_interpolates = Discriminator(interpolates)
         gradients = tf.gradients(disc_interpolates, [interpolates])[0]
         slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
-        if not ONE_SIDED:
-            gradient_penalty = tf.reduce_mean((slopes-1)**2)
-        else:
-            gradient_penalty = tf.reduce_mean(tf.clip_by_value(slopes - 1., 0., np.infty)**2)
+        if penalty_mode == "grad":
+            if not ONE_SIDED:
+                gradient_penalty = tf.reduce_mean((slopes-1.)**2)
+            else:
+                gradient_penalty = tf.reduce_mean(tf.clip_by_value(slopes - 1., 0., np.infty)**2)
+        elif penalty_mode == "pagan" or penalty_mode == "ot":
+            EPS = 1e-6
+            print("SHAPES OF REAL AND FAKE DATA FOR PAGAN AND OT: ", real_data.get_shape(), fake_data.get_shape())
+            interp_real = real_data
+            interp_fake = fake_data
+            _score_real = Discriminator(interp_real)
+            _score_fake = Discriminator(interp_fake)
+            real_fake_dist = tf.norm(interp_real - interp_fake, ord=2, axis=1)
+            print("SCORES AND DIST SHAPES: ", _score_real.get_shape(), _score_fake.get_shape(), real_fake_dist.get_shape())
 
+            if penalty_mode == "pagan":
+                penalty_vecs = tf.clip_by_value(
+                        (tf.abs(_score_real - _score_fake)
+                         / tf.clip_by_value(real_fake_dist, EPS, np.infty))
+                        - 1,
+                    0, np.infty) ** 2
+            elif penalty_mode == "ot":
+                penalty_vecs = tf.clip_by_value(
+                        _score_real - _score_fake - real_fake_dist,
+                    0, np.infty) ** 2
+            print("PENALTY VEC SHAPE: ", penalty_vecs.get_shape())
+            gradient_penalty = tf.reduce_mean(penalty_vecs)
+        else:
+            raise Exception("unknown penalty mode {}".format(penalty_mode))
         disc_cost += LAMBDA*gradient_penalty
 
     disc_params = lib.params_with_name('Discriminator')
@@ -177,7 +222,7 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
         plt.scatter(true_dist[:, 0], true_dist[:, 1], c='orange',  marker='+')
         plt.scatter(samples[:, 0],    samples[:, 1],    c='green', marker='+')
 
-        plt.savefig('frame'+str(frame_index[0])+'.jpg')
+        plt.savefig('{}/frame_{}.jpg'.format(log_dir, frame_index[0]))
         frame_index[0] += 1
 
     # Dataset iterator

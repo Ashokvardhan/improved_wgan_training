@@ -42,10 +42,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
     print("log dir set to {}".format(lib.plot.logdir))
     # dump locals() for settings
     with open("{}/settings.dict".format(log_dir), "w") as f:
-        loca = {}
-        loca.update(locals())
-        del loca["f"]
-        del loca["loca"]
+        loca = locals().copy()
         if penalty_mode != "grad":
             del loca["one_sided"]
         f.write(str(loca))
@@ -362,7 +359,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                     slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
                     if ONE_SIDED is True:
                         gradient_penalty = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
-                        gp_pos = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
+                        gp_pos = gradient_penalty * 1.  #LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
                         gp_neg = tf.constant(0.)
                     else:
                         gradient_penalty = LAMBDA *tf.reduce_mean((slopes-1.)**2)
@@ -370,10 +367,30 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                         gp_neg = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., -np.infty, 0)**2)
                 elif penalty_mode == "pagan" or penalty_mode == "ot":
                     _EPS = 1e-6
+                    _INTERP = True
                     print("SHAPES OF REAL AND FAKE DATA FOR PAGAN AND OT: ", real_data.get_shape(), fake_data.get_shape())
-                    _D_real, _ = Discriminator(real_data, labels)   # TODO: check make sure labels don't have influence
-                    _D_fake, _ = Discriminator(fake_data, labels)
-                    real_fake_dist = tf.norm(real_data - fake_data, ord=2, axis=1)     # data are vectors: (64, 3072) from get_shape()
+                    if _INTERP:
+                        _alpha = tf.random_uniform(
+                            shape=[BATCH_SIZE/len(DEVICES_A),1],
+                            minval=0.,
+                            maxval=1.
+                        )
+                        _alpha2 = tf.random_uniform(
+                            shape=[BATCH_SIZE/len(DEVICES_A),1],
+                            minval=0.,
+                            maxval=1.
+                        )
+                        alpha = tf.minimum(_alpha, _alpha2)
+                        alpha2 = tf.maximum(_alpha, _alpha2)
+                        differences = fake_data - real_data
+                        interp_real = real_data + (alpha * differences)         # points closer to real
+                        interp_fake = real_data + (alpha2 * differences)        # points closer to fake
+                    else:
+                        interp_real = real_data
+                        interp_fake = fake_data
+                    _D_real, _ = Discriminator(interp_real, labels)   # TODO: check make sure labels don't have influence
+                    _D_fake, _ = Discriminator(interp_fake, labels)
+                    real_fake_dist = tf.norm(interp_real - interp_fake, ord=2, axis=1)     # data are vectors: (64, 3072) from get_shape()
                     print("SCORES AND DIST SHAPES: ", _D_real.get_shape(), _D_fake.get_shape(), real_fake_dist.get_shape())
 
                     if penalty_mode == "pagan":
