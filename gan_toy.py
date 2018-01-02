@@ -120,12 +120,14 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
         elif penalty_mode == "pagan" or penalty_mode == "ot":
             EPS = 1e-6
             print("SHAPES OF REAL AND FAKE DATA FOR PAGAN AND OT: ", real_data.get_shape(), fake_data.get_shape())
+            print("TYPES: ", type(real_data), type(fake_data))
             interp_real = real_data
             interp_fake = fake_data
             _score_real = Discriminator(interp_real)
             _score_fake = Discriminator(interp_fake)
             real_fake_dist = tf.norm(interp_real - interp_fake, ord=2, axis=1)
             print("SCORES AND DIST SHAPES: ", _score_real.get_shape(), _score_fake.get_shape(), real_fake_dist.get_shape())
+            print("TYPES: ", type(_score_real), type(_score_fake), type(real_fake_dist))
 
             if penalty_mode == "pagan":
                 penalty_vecs = tf.clip_by_value(

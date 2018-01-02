@@ -371,6 +371,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                     _EPS = 1e-6
                     _INTERP = True
                     print("SHAPES OF REAL AND FAKE DATA FOR PAGAN AND OT: ", real_data.get_shape(), fake_data.get_shape())
+                    print("TYPES: ", type(real_data), type(fake_data))
                     if _INTERP:
                         _alpha = tf.random_uniform(
                             shape=[BATCH_SIZE/len(DEVICES_A),1],
@@ -394,6 +395,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                     _D_fake, _ = Discriminator(interp_fake, labels)
                     real_fake_dist = tf.norm(interp_real - interp_fake, ord=2, axis=1)     # data are vectors: (64, 3072) from get_shape()
                     print("SCORES AND DIST SHAPES: ", _D_real.get_shape(), _D_fake.get_shape(), real_fake_dist.get_shape())
+                    print("TYPES: ", type(_D_real), type(_D_fake), type(real_fake_dist))
 
                     if penalty_mode == "pagan":
                         penalty_vecs = tf.clip_by_value(
