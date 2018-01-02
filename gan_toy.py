@@ -33,6 +33,11 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
     import tflib.ops.linear
     import tflib.plot
 
+    if os.path.exists(log_dir):
+        raise Exception("log_dir {} exists".format(log_dir))
+    else:
+        os.makedirs(log_dir)
+
     lib.plot.logdir = log_dir
     print("log dir set to {}".format(lib.plot.logdir))
 

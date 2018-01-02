@@ -27,6 +27,8 @@ from IPython import embed
 
 from util import argprun
 
+# python run_multiple.py -gpu 1 -iters 100000 -penalty_weight "0.1" -log_dir exp4 -penalty_mode grad -one_sided
+
 # specify one_sided, data_dir and log_dir and penalty_weight (everything else should be default, no conditioning)
 
 def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
