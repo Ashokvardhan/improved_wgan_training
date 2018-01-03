@@ -232,7 +232,7 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
 
         saveidx = frame_index[0] if saveidx is None else saveidx
 
-        plt.savefig('{}/frame_{}.jpg'.format(log_dir, saveidx))
+        plt.savefig('{}/frame_{}.pdf'.format(log_dir, saveidx), format="pdf")
         frame_index[0] += 1
 
     # Dataset iterator
