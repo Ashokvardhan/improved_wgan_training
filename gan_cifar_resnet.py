@@ -372,7 +372,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                     _INTERP = True
                     print("SHAPES OF REAL AND FAKE DATA FOR PAGAN AND OT: ", real_data.get_shape(), fake_data.get_shape())
                     print("TYPES: ", type(real_data), type(fake_data))
-                    if _INTERP:
+                    if _INTERP:     # ONLY EXP_PAGANY_1 is _INTERP !!! ???
                         _alpha = tf.random_uniform(
                             shape=[BATCH_SIZE/len(DEVICES_A),1],
                             minval=0.,

@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, sys
 sys.path.append(os.getcwd())
 
@@ -195,15 +196,15 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
             )
         clip_disc_weights = tf.group(*clip_ops)
 
-    print "Generator params:"
+    print("Generator params:")
     for var in lib.params_with_name('Generator'):
-        print "\t{}\t{}".format(var.name, var.get_shape())
-    print "Discriminator params:"
+        print("\t{}\t{}".format(var.name, var.get_shape()))
+    print("Discriminator params:")
     for var in lib.params_with_name('Discriminator'):
-        print "\t{}\t{}".format(var.name, var.get_shape())
+        print("\t{}\t{}".format(var.name, var.get_shape()))
 
     frame_index = [0]
-    def generate_image(true_dist):
+    def generate_image(true_dist, saveidx=None):
         """
         Generates and saves a plot of the true distribution, the generator, and the
         critic.
@@ -229,7 +230,9 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
         plt.scatter(true_dist[:, 0], true_dist[:, 1], c='orange',  marker='+')
         plt.scatter(samples[:, 0],    samples[:, 1],    c='green', marker='+')
 
-        plt.savefig('{}/frame_{}.jpg'.format(log_dir, frame_index[0]))
+        saveidx = frame_index[0] if saveidx is None else saveidx
+
+        plt.savefig('{}/frame_{}.jpg'.format(log_dir, saveidx))
         frame_index[0] += 1
 
     # Dataset iterator
@@ -307,9 +310,9 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
                     _ = session.run([clip_disc_weights])
             # Write logs and save samples
             lib.plot.plot('disc cost', _disc_cost)
-            if iteration % 100 == 99:
+            if iteration % 100 == 99 or iteration == 10 or iteration == 50:
                 lib.plot.flush()
-                generate_image(_data)
+                generate_image(_data, saveidx=iteration)
             lib.plot.tick()
 
 
