@@ -369,7 +369,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                         gp_neg = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., -np.infty, 0)**2)
                 elif penalty_mode == "pagan" or penalty_mode == "ot":
                     _EPS = 1e-6
-                    _INTERP = True
+                    _INTERP = False
                     print("SHAPES OF REAL AND FAKE DATA FOR PAGAN AND OT: ", real_data.get_shape(), fake_data.get_shape())
                     print("TYPES: ", type(real_data), type(fake_data))
                     if _INTERP:     # ONLY EXP_PAGANY_1 is _INTERP !!! ???
