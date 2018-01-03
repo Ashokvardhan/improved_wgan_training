@@ -224,6 +224,9 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
 
         plt.clf()
 
+        fig = plt.gcf()
+        fig.set_size_inches(7, 7)
+
         axes = plt.gca()
         axes.set_xlim([-2, 2])
         axes.set_ylim([-2, 2])
