@@ -224,6 +224,10 @@ def run(mode="wgan-gp", dataset='8gaussians', dim=512,
 
         plt.clf()
 
+        axes = plt.gca()
+        axes.set_xlim([-2, 2])
+        axes.set_ylim([-2, 2])
+
         x = y = np.linspace(-RANGE, RANGE, N_POINTS)
         plt.contour(x,y,disc_map.reshape((len(x), len(y))).transpose())
 
