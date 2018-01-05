@@ -28,6 +28,7 @@ def get_inception_score(images, splits=10):
   assert(len(images[0].shape) == 3)
   assert(np.max(images[0]) > 10)
   assert(np.min(images[0]) >= 0.0)
+  print("# samples used for inception: {}".format(len(images)))
   inps = []
   for img in images:
     img = img.astype(np.float32)
@@ -50,6 +51,7 @@ def get_inception_score(images, splits=10):
       kl = part * (np.log(part) - np.log(np.expand_dims(np.mean(part, 0), 0)))
       kl = np.mean(np.sum(kl, 1))
       scores.append(np.exp(kl))
+    print("# scores in IS comp for mean and std: {}".format(len(scores)))
     return np.mean(scores), np.std(scores)
 
 # This function is called automatically.
