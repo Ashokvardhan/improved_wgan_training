@@ -462,11 +462,11 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
         K.backend.set_learning_phase(True)
 
-        # discriminator = Disc(DIM_D)
-        # generator = Gen(DIM_G, outdim=OUTPUT_DIM)
-
-        discriminator = Discriminator
-        generator = Generator
+        discriminator = Disc(DIM_D)
+        generator = Gen(DIM_G, outdim=OUTPUT_DIM)
+        #
+        # discriminator = Discriminator
+        # generator = Generator
 
         _iteration_gan = tf.placeholder(tf.int32, shape=None)
         all_real_data_int = tf.placeholder(tf.int32, shape=[BATCH_SIZE, OUTPUT_DIM])
