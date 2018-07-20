@@ -190,7 +190,7 @@ class Disc(TFModule):
     def forward(self, x, labels):
         for layer in self.layers:
             x = layer(x)
-        return x
+        return x, None
 
     def get_model(self, input=None):
         output = self(input)
@@ -459,7 +459,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         # discriminator = Disc(DIM_D).get_model(K.layers.Input(shape=(OUTPUT_DIM,)))
         # generator = Gen(DIM_G).get_model()
 
-        K.backend.set_learning_phase(1)
+        K.backend.set_learning_phase(True)
 
         discriminator = Disc(DIM_D)
         generator = Gen(DIM_G, outdim=OUTPUT_DIM)
@@ -686,7 +686,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         gen_train_ops = [gen_train_op] + gen_update_ops
         disc_train_ops = [disc_train_op] + disc_update_ops
 
-        K.backend.set_learning_phase(0)
+        K.backend.set_learning_phase(False)
 
         # Function for generating samples
         frame_i = [0]
