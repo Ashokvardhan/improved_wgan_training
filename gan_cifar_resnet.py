@@ -120,8 +120,9 @@ class ResBlock(TFModule):
 
     @property
     def trainable_weights(self):
-        ret = self.conv1.trainable_weights + self.bn1.trainable_weights \
-              + self.conv2.trainable_weights + self.bn2.trainable_weights + self.shortcut.trainable_weights
+        ret = self.conv1.trainable_weights + (self.bn1.trainable_weights if self.bn1 is not None else []) \
+              + self.conv2.trainable_weights + (self.bn2.trainable_weights if self.bn2 is not None else [])\
+              + self.shortcut.trainable_weights
         return ret
 
     @property
@@ -142,7 +143,7 @@ class Gen(TFModule):
             ResBlock(dim_g, dim_g, 3, resample="up"),
             ResBlock(dim_g, dim_g, 3, resample="up"),
             ResBlock(dim_g, dim_g, 3, resample="up"),
-            K.layers.Conv2D(3, 3, padding="same"),
+            K.layers.Conv2D(3, 3, padding="same", data_format="channels_first"),
             K.layers.Activation("tanh"),
             K.layers.Lambda(lambda x: tf.reshape(x, (-1, outdim)))
         ]
@@ -588,8 +589,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                     else:
                         interp_real = real_data
                         interp_fake = fake_data
-                    _D_real, _ = Discriminator(interp_real, labels)   # TODO: check make sure labels don't have influence
-                    _D_fake, _ = Discriminator(interp_fake, labels)
+                    _D_real, _ = discriminator(interp_real, labels)   # TODO: check make sure labels don't have influence
+                    _D_fake, _ = discriminator(interp_fake, labels)
                     real_fake_dist = tf.norm(interp_real - interp_fake, ord=2, axis=1)     # data are vectors: (64, 3072) from get_shape()
                     print("SCORES AND DIST SHAPES: ", _D_real.get_shape(), _D_fake.get_shape(), real_fake_dist.get_shape())
                     print("TYPES: ", type(_D_real), type(_D_fake), type(real_fake_dist))
@@ -640,8 +641,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
         disc_update_ops = []
         if hasattr(discriminator, "updates"):
-            for old_val, new_val in discriminator.updates:
-                disc_update_ops.append(tf.assign(old_val, new_val))
+            disc_update_ops = discriminator.updates
 
         if DECAY:
             decay = tf.maximum(0., 1.-(tf.cast(_iteration_gan, tf.float32)/ITERS))
@@ -673,20 +673,25 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
         gen_update_ops = []
         if hasattr(generator, "updates"):
-            for old_val, new_val in generator.updates:
-                gen_update_ops.append(tf.assign(old_val, new_val))
+            gen_update_ops = generator.updates
 
-        gen_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
-        disc_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
-        gen_gv = gen_opt.compute_gradients(gen_cost, var_list=gen_params)
-        disc_gv = disc_opt.compute_gradients(disc_cost, var_list=disc_params)
-        gen_train_op = gen_opt.apply_gradients(gen_gv)
-        disc_train_op = disc_opt.apply_gradients(disc_gv)
+        with tf.control_dependencies(disc_update_ops):
+            disc_train_op = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)\
+                .minimize(disc_cost, var_list=disc_params)
+        with tf.control_dependencies(gen_update_ops):
+            gen_train_op = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)\
+                .minimize(gen_cost, var_list=gen_params)
+        # gen_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
+        # disc_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
+        # gen_gv = gen_opt.compute_gradients(gen_cost, var_list=gen_params)
+        # disc_gv = disc_opt.compute_gradients(disc_cost, var_list=disc_params)
+        # gen_train_op = gen_opt.apply_gradients(gen_gv)
+        # disc_train_op = disc_opt.apply_gradients(disc_gv)
 
-        gen_train_ops = [gen_train_op] + gen_update_ops
-        disc_train_ops = [disc_train_op] + disc_update_ops
+        gen_train_ops = [gen_train_op]# + gen_update_ops
+        disc_train_ops = [disc_train_op]# + disc_update_ops
 
-        K.backend.set_learning_phase(False)
+        # K.backend.set_learning_phase(False)
 
         # Function for generating samples
         frame_i = [0]
