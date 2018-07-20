@@ -675,18 +675,15 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         if hasattr(generator, "updates"):
             gen_update_ops = generator.updates
 
-        with tf.control_dependencies(disc_update_ops):
-            disc_train_op = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)\
-                .minimize(disc_cost, var_list=disc_params)
         with tf.control_dependencies(gen_update_ops):
-            gen_train_op = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)\
-                .minimize(gen_cost, var_list=gen_params)
-        # gen_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
-        # disc_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
-        # gen_gv = gen_opt.compute_gradients(gen_cost, var_list=gen_params)
-        # disc_gv = disc_opt.compute_gradients(disc_cost, var_list=disc_params)
-        # gen_train_op = gen_opt.apply_gradients(gen_gv)
-        # disc_train_op = disc_opt.apply_gradients(disc_gv)
+            gen_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
+            gen_gv = gen_opt.compute_gradients(gen_cost, var_list=gen_params)
+            gen_train_op = gen_opt.apply_gradients(gen_gv)
+
+        with tf.control_dependencies(disc_update_ops):
+            disc_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
+            disc_gv = disc_opt.compute_gradients(disc_cost, var_list=disc_params)
+            disc_train_op = disc_opt.apply_gradients(disc_gv)
 
         gen_train_ops = [gen_train_op]# + gen_update_ops
         disc_train_ops = [disc_train_op]# + disc_update_ops
