@@ -127,22 +127,23 @@ class ResBlock(TFModule):
 
     @property
     def updates(self):
-        ret = self.bn1.updates + self.bn2.updates + self.conv1.updates + self.conv2.updates + self.shortcut.updates
+        ret = (self.bn1.updates if self.bn1 is not None else []) + (self.bn2.updates if self.bn2 is not None else []) \
+              + self.conv1.updates + self.conv2.updates + self.shortcut.updates
         return ret
 
 
 class Gen(TFModule):
-    def __init__(self, dim_g, z_dim=128, batsize=None, outdim=None, **kw):
+    def __init__(self, dim_g, z_dim=128, batsize=None, outdim=None, normalize=True, **kw):
         super(Gen, self).__init__(**kw)
         self.z_dim = z_dim
         self.layers = [
             K.layers.Lambda(lambda x: tf.expand_dims(tf.expand_dims(x, 2), 3)),
-            K.layers.Conv2DTranspose(dim_g, 4, data_format="channels_first"),
-            K.layers.BatchNormalization(axis=1),
-            K.layers.Activation("relu"),
-            ResBlock(dim_g, dim_g, 3, resample="up"),
-            ResBlock(dim_g, dim_g, 3, resample="up"),
-            ResBlock(dim_g, dim_g, 3, resample="up"),
+            K.layers.Conv2DTranspose(dim_g, 4, data_format="channels_first") ] \
+            + [K.layers.BatchNormalization(axis=1)] if normalize else [] \
+            + [K.layers.Activation("relu"),
+            ResBlock(dim_g, dim_g, 3, resample="up", batnorm=normalize),
+            ResBlock(dim_g, dim_g, 3, resample="up", batnorm=normalize),
+            ResBlock(dim_g, dim_g, 3, resample="up", batnorm=normalize),
             K.layers.Conv2D(3, 3, padding="same", data_format="channels_first"),
             K.layers.Activation("tanh"),
             K.layers.Lambda(lambda x: tf.reshape(x, (-1, outdim)))
@@ -175,15 +176,15 @@ class Gen(TFModule):
 
 
 class Disc(TFModule):
-    def __init__(self, dim_d, **kw):
+    def __init__(self, dim_d, normalize=False, **kw):
         super(Disc, self).__init__(**kw)
         self.layers = [
             K.layers.Lambda(lambda x: tf.reshape(x, [-1, 3, 32, 32])),
-            ResBlock(3, dim_d, 3, resample="down", batnorm=False),
-            ResBlock(dim_d, dim_d, 3, resample="down", batnorm=False),
-            ResBlock(dim_d, dim_d, 3, resample=None, batnorm=False),
-            ResBlock(dim_d, dim_d, 3, resample=None, batnorm=False),
-            K.layers.Lambda(lambda x: tf.reduce_mean(tf.reduce_mean(x, 3), 2)),
+            ResBlock(3, dim_d, 3, resample="down", batnorm=normalize),
+            ResBlock(dim_d, dim_d, 3, resample="down", batnorm=normalize),
+            ResBlock(dim_d, dim_d, 3, resample=None, batnorm=normalize),
+            ResBlock(dim_d, dim_d, 3, resample=None, batnorm=normalize),
+            K.layers.Lambda(lambda x: tf.reduce_mean(x, [2, 3])),
             K.layers.Dense(1),
             K.layers.Lambda(lambda x: tf.squeeze(x, 1))
         ]
@@ -439,7 +440,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
     def Discriminator(inputs, labels):
         output = tf.reshape(inputs, [-1, 3, 32, 32])
-        output = OptimizedResBlockDisc1(output)
+        output = OptimizedResBlockDisc1(oudisc_update_opstput)
         output = ResidualBlock('Discriminator.2', DIM_D, DIM_D, 3, output, resample='down', labels=labels)
         output = ResidualBlock('Discriminator.3', DIM_D, DIM_D, 3, output, resample=None, labels=labels)
         output = ResidualBlock('Discriminator.4', DIM_D, DIM_D, 3, output, resample=None, labels=labels)
@@ -462,8 +463,8 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
         K.backend.set_learning_phase(True)
 
-        discriminator = Disc(DIM_D)
-        generator = Gen(DIM_G, outdim=OUTPUT_DIM)
+        discriminator = Disc(DIM_D, normalize=normalization_d)
+        generator = Gen(DIM_G, outdim=OUTPUT_DIM, normalize=normalization_g)
         #
         # discriminator = Discriminator
         # generator = Generator
@@ -675,12 +676,12 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         if hasattr(generator, "updates"):
             gen_update_ops = generator.updates
 
-        with tf.control_dependencies([]):
+        with tf.control_dependencies(gen_update_ops):
             gen_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
             gen_gv = gen_opt.compute_gradients(gen_cost, var_list=gen_params)
             gen_train_op = gen_opt.apply_gradients(gen_gv)
 
-        with tf.control_dependencies([]):
+        with tf.control_dependencies(disc_update_ops):
             disc_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
             disc_gv = disc_opt.compute_gradients(disc_cost, var_list=disc_params)
             disc_train_op = disc_opt.apply_gradients(disc_gv)
