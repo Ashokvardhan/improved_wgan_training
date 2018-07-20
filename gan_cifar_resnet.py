@@ -138,8 +138,8 @@ class Gen(TFModule):
         self.z_dim = z_dim
         self.layers = [
             K.layers.Lambda(lambda x: tf.expand_dims(tf.expand_dims(x, 2), 3)),
-            K.layers.Conv2DTranspose(dim_g, 4, data_format="channels_first") ] \
-            + [K.layers.BatchNormalization(axis=1)] if normalize else [] \
+            K.layers.Conv2DTranspose(dim_g, 4, data_format="channels_first")] \
+            + ([K.layers.BatchNormalization(axis=1)] if normalize else []) \
             + [K.layers.Activation("relu"),
             ResBlock(dim_g, dim_g, 3, resample="up", batnorm=normalize),
             ResBlock(dim_g, dim_g, 3, resample="up", batnorm=normalize),
