@@ -24,6 +24,12 @@ def Conv2D(name, input_dim, output_dim, filter_size, inputs, he_init=True, mask_
 
     returns: tensor of shape (batch size, num channels, height, width)
     """
+    assert(weightnorm is None)      # debug that these features are not used
+    assert(mask_type is None)
+    assert(_default_weightnorm == False)
+    assert(_weights_stdev is None)
+    assert(gain == 1.)
+
     with tf.name_scope(name) as scope:
 
         if mask_type is not None:

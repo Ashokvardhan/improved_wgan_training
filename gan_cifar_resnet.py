@@ -17,6 +17,7 @@ import glob
 
 import numpy as np
 import tensorflow as tf
+import tensorflow.contrib.keras as K
 import sklearn.datasets
 
 import time
@@ -31,12 +32,197 @@ from util import argprun
 
 # specify one_sided, data_dir and log_dir and penalty_weight (everything else should be default, no conditioning)
 
+
+class TFModule(object):
+    def __call__(self, *x, **kwargs):
+        return self.forward(*x, **kwargs)
+
+
+class ResamplingConv(TFModule):
+    def __init__(self, in_planes, out_planes, kernel=3, padding=None, resample=None, bias=True):
+        super(ResamplingConv, self).__init__()
+        assert(kernel in (0, 1, 3, 5, 7))
+        padding = (kernel - 1) // 2 if padding is None else padding
+        if kernel == 0:
+            self.conv = None
+        else:
+            self.conv = K.layers.Conv2D(out_planes,
+                       kernel_size=kernel, padding="same", use_bias=bias,
+                       data_format="channels_first")
+        self.resample = resample
+        self.resampler = None
+        if resample == "up":
+            self.resampler = K.layers.UpSampling2D(size=2, data_format="channels_first")
+        elif resample == "down":
+            self.resampler = K.layers.AveragePooling2D(pool_size=2, data_format="channels_first")
+
+    def forward(self, x):
+        if self.resample == "up":
+            x = self.resampler(x)
+        if self.conv is not None:
+            x = self.conv(x)
+        if self.resample == "down":
+            x = self.resampler(x)
+        return x
+
+    @property
+    def trainable_weights(self):
+        ret = []
+        if self.conv is not None:
+            ret += self.conv.trainable_weights
+        if self.resampler is not None:
+            ret += self.resampler.trainable_weights
+        return ret
+
+    @property
+    def updates(self):
+        ret = []
+        if self.conv is not None:
+            ret += self.conv.updates
+        if self.resampler is not None:
+            ret += self.resampler.updates
+        return ret
+
+
+class ResBlock(TFModule):
+    def __init__(self, inplanes, planes, kernel=3, resample=None, bias=True, batnorm=True):
+        super(ResBlock, self).__init__()
+        self.conv1 = ResamplingConv(None, planes, kernel,
+                                    resample=resample if resample != "down" else None,
+                                    bias=bias)
+        self.bn1 = K.layers.BatchNormalization(axis=1) if batnorm else None
+        self.relu = K.layers.Activation("relu")
+        self.conv2 = ResamplingConv(None, planes, kernel,
+                                    resample=resample if resample != "up" else None,
+                                    bias=bias)
+        self.bn2 = K.layers.BatchNormalization(axis=1) if batnorm else None
+        self.resample = resample
+        self.shortcut = ResamplingConv(None, planes, 0 if (inplanes == planes and resample is None) else 1,
+                                       resample=resample,
+                                       bias=bias)
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out) if self.bn1 is not None else out
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out) if self.bn2 is not None else out
+
+        residual = self.shortcut(residual)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+    @property
+    def trainable_weights(self):
+        ret = self.conv1.trainable_weights + self.bn1.trainable_weights \
+              + self.conv2.trainable_weights + self.bn2.trainable_weights + self.shortcut.trainable_weights
+        return ret
+
+    @property
+    def updates(self):
+        ret = self.bn1.updates + self.bn2.updates + self.conv1.updates + self.conv2.updates + self.shortcut.updates
+        return ret
+
+
+class Gen(TFModule):
+    def __init__(self, dim_g, z_dim=128, batsize=None, outdim=None, **kw):
+        super(Gen, self).__init__(**kw)
+        self.z_dim = z_dim
+        self.layers = [
+            K.layers.Lambda(lambda x: tf.expand_dims(tf.expand_dims(x, 2), 3)),
+            K.layers.Conv2DTranspose(dim_g, 4, data_format="channels_first"),
+            K.layers.BatchNormalization(axis=1),
+            K.layers.Activation("relu"),
+            ResBlock(dim_g, dim_g, 3, resample="up"),
+            ResBlock(dim_g, dim_g, 3, resample="up"),
+            ResBlock(dim_g, dim_g, 3, resample="up"),
+            K.layers.Conv2D(3, 3, padding="same"),
+            K.layers.Activation("tanh"),
+            K.layers.Lambda(lambda x: tf.reshape(x, (-1, outdim)))
+        ]
+
+    def forward(self, n_samples, labels, noise=None):
+        x = noise
+        if noise is None:
+            x = tf.random_normal([n_samples, self.z_dim])
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+    def get_model(self):
+        output = self()
+
+    @property
+    def trainable_weights(self):
+        ret = []
+        for layer in self.layers:
+            ret += layer.trainable_weights
+        return ret
+
+    @property
+    def updates(self):
+        ret = []
+        for layer in self.layers:
+            ret += layer.updates
+        return ret
+
+
+class Disc(TFModule):
+    def __init__(self, dim_d, **kw):
+        super(Disc, self).__init__(**kw)
+        self.layers = [
+            K.layers.Lambda(lambda x: tf.reshape(x, [-1, 3, 32, 32])),
+            ResBlock(3, dim_d, 3, resample="down", batnorm=False),
+            ResBlock(dim_d, dim_d, 3, resample="down", batnorm=False),
+            ResBlock(dim_d, dim_d, 3, resample=None, batnorm=False),
+            ResBlock(dim_d, dim_d, 3, resample=None, batnorm=False),
+            K.layers.Lambda(lambda x: tf.reduce_mean(tf.reduce_mean(x, 3), 2)),
+            K.layers.Dense(1),
+            K.layers.Lambda(lambda x: tf.squeeze(x, 1))
+        ]
+
+    def forward(self, x, labels):
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+    def get_model(self, input=None):
+        output = self(input)
+        model = K.models.Model(inputs=input, outputs=output)
+        return model
+
+    @property
+    def trainable_weights(self):
+        ret = []
+        for layer in self.layers:
+            ret += layer.trainable_weights
+        return ret
+
+    @property
+    def updates(self):
+        ret = []
+        for layer in self.layers:
+            ret += layer.updates
+        return ret
+
+
 def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         n_gpus=1, normalization_g=True, normalization_d=False,
         batch_size=64, iters=100000, penalty_weight=10,
         one_sided=False, output_dim=3072, lr=2e-4, data_dir='/srv/denis/tfvision-datasets/cifar-10-batches-py',
         inception_frequency=1000, conditional=False, acgan=False, log_dir='default_log', run_fid=False,
         penalty_mode="grad"):   # grad or pagan or ot
+
+    if mode == "wgan-gp" and penalty_mode == "grad":
+        print("WGAN-LP" if one_sided else "WGAN-GP")
+
+    # region start
     # Download CIFAR-10 (Python version) at
     # https://www.cs.toronto.edu/~kriz/cifar.html and fill in the path to the
     # extracted files here!
@@ -270,6 +456,17 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
     with tf.Session() as session:
 
+        # discriminator = Disc(DIM_D).get_model(K.layers.Input(shape=(OUTPUT_DIM,)))
+        # generator = Gen(DIM_G).get_model()
+
+        K.backend.set_learning_phase(1)
+
+        discriminator = Disc(DIM_D)
+        generator = Gen(DIM_G, outdim=OUTPUT_DIM)
+        #
+        # discriminator = Discriminator
+        # generator = Generator
+
         _iteration_gan = tf.placeholder(tf.int32, shape=None)
         all_real_data_int = tf.placeholder(tf.int32, shape=[BATCH_SIZE, OUTPUT_DIM])
         all_real_labels = tf.placeholder(tf.int32, shape=[BATCH_SIZE])
@@ -279,7 +476,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
         fake_data_splits = []
         for i, device in enumerate(DEVICES):
             with tf.device(device):
-                fake_data_splits.append(Generator(BATCH_SIZE/len(DEVICES), labels_splits[i]))
+                fake_data_splits.append(generator(BATCH_SIZE/len(DEVICES), labels_splits[i]))
 
         all_real_data = tf.reshape(2*((tf.cast(all_real_data_int, tf.float32)/256.)-.5), [BATCH_SIZE, OUTPUT_DIM])
         all_real_data += tf.random_uniform(shape=[BATCH_SIZE,OUTPUT_DIM],minval=0.,maxval=1./128) # dequantize
@@ -312,7 +509,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                     labels_splits[i],
                     labels_splits[len(DEVICES_A)+i]
                 ], axis=0)
-                disc_all, disc_all_acgan = Discriminator(real_and_fake_data, real_and_fake_labels)
+                disc_all, disc_all_acgan = discriminator(real_and_fake_data, real_and_fake_labels)
                 disc_real = disc_all[:BATCH_SIZE/len(DEVICES_A)]
                 disc_fake = disc_all[BATCH_SIZE/len(DEVICES_A):]
                 disc_costs.append(tf.reduce_mean(disc_fake) - tf.reduce_mean(disc_real))
@@ -357,7 +554,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                     )
                     differences = fake_data - real_data
                     interpolates = real_data + (alpha*differences)
-                    gradients = tf.gradients(Discriminator(interpolates, labels)[0], [interpolates])[0]
+                    gradients = tf.gradients(discriminator(interpolates, labels)[0], [interpolates])[0]
                     slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
                     if ONE_SIDED is True:
                         gradient_penalty = LAMBDA *tf.reduce_mean(tf.clip_by_value(slopes - 1., 0, np.infty)**2)
@@ -436,7 +633,15 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
             disc_acgan_fake_acc = tf.constant(0.)
             disc_cost = disc_wgan
 
-        disc_params = lib.params_with_name('Discriminator.')
+        if hasattr(discriminator, "trainable_weights"):
+            disc_params = discriminator.trainable_weights       # keras mode
+        else:
+            disc_params = lib.params_with_name('Discriminator.')    # original
+
+        disc_update_ops = []
+        if hasattr(discriminator, "updates"):
+            for old_val, new_val in discriminator.updates:
+                disc_update_ops.append(tf.assign(old_val, new_val))
 
         if DECAY:
             decay = tf.maximum(0., 1.-(tf.cast(_iteration_gan, tf.float32)/ITERS))
@@ -456,24 +661,38 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
                         tf.nn.sparse_softmax_cross_entropy_with_logits(logits=disc_fake_acgan, labels=fake_labels)
                     ))
                 else:
-                    gen_costs.append(-tf.reduce_mean(Discriminator(Generator(n_samples, fake_labels), fake_labels)[0]))
+                    gen_costs.append(-tf.reduce_mean(discriminator(generator(n_samples, fake_labels), fake_labels)[0]))
         gen_cost = (tf.add_n(gen_costs) / len(DEVICES))
         if CONDITIONAL and ACGAN:
             gen_cost += (ACGAN_SCALE_G*(tf.add_n(gen_acgan_costs) / len(DEVICES)))
 
+        if hasattr(generator, "trainable_weights"):
+            gen_params = generator.trainable_weights            # keras mode
+        else:
+            gen_params = lib.params_with_name('Generator')      # original
+
+        gen_update_ops = []
+        if hasattr(generator, "updates"):
+            for old_val, new_val in generator.updates:
+                gen_update_ops.append(tf.assign(old_val, new_val))
 
         gen_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
         disc_opt = tf.train.AdamOptimizer(learning_rate=LR*decay, beta1=0., beta2=0.9)
-        gen_gv = gen_opt.compute_gradients(gen_cost, var_list=lib.params_with_name('Generator'))
+        gen_gv = gen_opt.compute_gradients(gen_cost, var_list=gen_params)
         disc_gv = disc_opt.compute_gradients(disc_cost, var_list=disc_params)
         gen_train_op = gen_opt.apply_gradients(gen_gv)
         disc_train_op = disc_opt.apply_gradients(disc_gv)
+
+        gen_train_ops = [gen_train_op] + gen_update_ops
+        disc_train_ops = [disc_train_op] + disc_update_ops
+
+        K.backend.set_learning_phase(0)
 
         # Function for generating samples
         frame_i = [0]
         fixed_noise = tf.constant(np.random.normal(size=(100, 128)).astype('float32'))
         fixed_labels = tf.constant(np.array([0,1,2,3,4,5,6,7,8,9]*10,dtype='int32'))
-        fixed_noise_samples = Generator(100, fixed_labels, noise=fixed_noise)
+        fixed_noise_samples = generator(100, fixed_labels, noise=fixed_noise)
 
         def generate_image(frame, true_dist):
             samples = session.run(fixed_noise_samples)
@@ -482,7 +701,7 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
         # Function for calculating inception score
         fake_labels_100 = tf.cast(tf.random_uniform([100])*10, tf.int32)
-        samples_100 = Generator(100, fake_labels_100)
+        samples_100 = generator(100, fake_labels_100)
 
         def get_IS_and_FID(n):
             all_samples = []
@@ -556,18 +775,19 @@ def run(mode="wgan-gp", dim_g=128, dim_d=128, critic_iters=5,
 
             _gen_cost = 0
             if iteration > 0:
-                _gen_cost, _ = session.run([gen_cost, gen_train_op], feed_dict={_iteration_gan: iteration})
+                _gen_cost, _ = session.run([gen_cost, gen_train_ops], feed_dict={_iteration_gan: iteration})
 
             for i in range(N_CRITIC):
                 _data,_labels = gen.next()
                 if CONDITIONAL and ACGAN:
+                    assert(False)
                     _disc_cost, _disc_wgan, _disc_acgan, _disc_acgan_acc, _disc_acgan_fake_acc, _ \
                         = session.run([disc_cost, disc_wgan, disc_acgan, disc_acgan_acc, disc_acgan_fake_acc, disc_train_op],
                             feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration_gan:iteration})
                 else:
                     _disc_cost, _scorediff, _gps_all, _gps_pos, _gps_neg, _ \
                         = session.run(
-                    [disc_cost,  scorediff,  gps_all,  gps_pos,  gps_neg,  disc_train_op],
+                    [disc_cost,  scorediff,  gps_all,  gps_pos,  gps_neg,  disc_train_ops],
                         feed_dict={all_real_data_int: _data, all_real_labels:_labels, _iteration_gan:iteration})
 
             lib.plot.plot('cost', _disc_cost)
